@@ -31,9 +31,13 @@ Ver `docs/architecture.md` para el razonamiento completo.
 - [x] Esquema de base de datos diseñado (`docs/schema.sql`)
 - [x] Proyecto de Supabase creado y conectado (`src/supabase-config.js`, `src/supabase-client.js`)
 - [x] Esquema corrido en Supabase (tablas + RLS por empresa)
-- [ ] Sustituir las funciones de `Store` (IndexedDB) de `legacy/marabunta.html` por `window.marabuntaDB`, una por una
-- [ ] Pantalla de login
-- [ ] Desplegar en Vercel
+- [x] Pantalla de login
+- [x] Store (IndexedDB) sustituido por Supabase (`src/supabase-store.js`) — como toda la app ya pasaba por esa misma pieza, Proyectos, Roster, Proveedores, Giras, Venues, catálogo de áreas y Protocolos quedaron conectados de un jalón
+- [x] Desplegado en Vercel: https://marabunta.vercel.app/legacy/marabunta.html
+- [x] Probado de punta a punta: login real + carga de la app — funcionando
+- [ ] Probar que guardar datos nuevos (crear un proyecto de prueba) persiste y se ve igual desde otro dispositivo/sesión
+- [ ] Separar `proyectos` en filas propias en vez de un solo bloque (ver tablas ya creadas en `docs/schema.sql`) — optimización para después, no bloquea el uso actual
+- [ ] Dominio propio (cuando se decida)
 
 ## Estructura del repo
 
