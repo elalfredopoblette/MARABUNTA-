@@ -18,16 +18,29 @@ La versión actual usa IndexedDB en el navegador: sin cuentas, sin sincronizaci�
 
 ## Plan de migración (en progreso)
 
-- **Backend / DB:** Supabase (Postgres administrado + autenticación incluida)
-- **Hosting:** Render o Fly.io (capa gratuita)
+- **Backend / DB:** Supabase (Postgres administrado + autenticación incluida) — proyecto ya creado
+- **Hosting:** Vercel (capa gratuita), desplegado directo desde este repo
 - **Alcance v1:** una sola empresa (EBS). Cada tabla incluye una columna `company_id` desde el día uno para que soportar multi-empresa después sea un cambio de permisos/UI, no una migración de datos.
 - **Dominio:** URL gratuita por ahora (sin dominio propio todavía)
+
+Ver `docs/architecture.md` para el razonamiento completo.
+
+## Estado de la migración
+
+- [x] Repo creado, app actual guardada en `legacy/`
+- [x] Esquema de base de datos diseñado (`docs/schema.sql`)
+- [x] Proyecto de Supabase creado y conectado (`src/supabase-config.js`, `src/supabase-client.js`)
+- [ ] Correr `docs/schema.sql` en el SQL Editor de Supabase
+- [ ] Sustituir las funciones de `Store` (IndexedDB) de `legacy/marabunta.html` por `window.marabuntaDB`, una por una
+- [ ] Pantalla de login
+- [ ] Desplegar en Vercel
 
 ## Estructura del repo
 
 ```
 legacy/         # la app monolítica actual (HTML/JS/CSS en un solo archivo), punto de partida
-docs/           # decisiones de arquitectura, notas de migración
+src/            # capa de conexión a Supabase (cliente, config) que va sustituyendo a Store/IndexedDB
+docs/           # decisiones de arquitectura, esquema de base de datos
 ```
 
-A medida que avance la migración, el código se irá separando en un frontend y un backend propios, y `legacy/` quedará solo como referencia histórica.
+A medida que avance la migración, el código se irá separando en un frontend propio, y `legacy/` quedará solo como referencia histórica.
