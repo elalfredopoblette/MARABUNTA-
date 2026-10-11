@@ -30,7 +30,7 @@ Ver `docs/architecture.md` para el razonamiento completo.
 - [x] Repo creado, app actual guardada en `legacy/`
 - [x] Esquema de base de datos diseñado (`docs/schema.sql`)
 - [x] Proyecto de Supabase creado y conectado (`src/supabase-config.js`, `src/supabase-client.js`)
-- [ ] Correr `docs/schema.sql` en el SQL Editor de Supabase
+- [x] Esquema corrido en Supabase (tablas + RLS por empresa)
 - [ ] Sustituir las funciones de `Store` (IndexedDB) de `legacy/marabunta.html` por `window.marabuntaDB`, una por una
 - [ ] Pantalla de login
 - [ ] Desplegar en Vercel
