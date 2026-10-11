@@ -1115,7 +1115,22 @@ function completitudProyecto(p){
 const getProyecto = () => state.proyectos.find(p=>p.id===state.currentId) || null;
 
 /* ---------------- Almacenamiento ---------------- */
-async function persistProyectos(){ try{ await Store.set('proyectos', JSON.stringify(state.proyectos)); }catch(e){ toast(e.message||'No se pudo guardar'); } }
+function usandoSupabase(){ return Store === window.SupabaseStore; }
+// soloId: si se pasa, solo se guarda ESE proyecto (caso normal: se está
+// editando uno). Sin soloId, se resincronizan todos los que haya en
+// memoria (casos de bulto: importar respaldo, desvincular un venue/gira
+// de varios proyectos a la vez). Guardar por id evita que dos personas
+// editando proyectos distintos al mismo tiempo se pisen el trabajo.
+async function persistProyectos(soloId){
+  if(usandoSupabase()){
+    try{
+      const lista = soloId ? state.proyectos.filter(p=>p.id===soloId) : state.proyectos;
+      await Promise.all(lista.map(p => window.marabuntaDB.guardarProyecto({ id:p.id, data:p })));
+    }catch(e){ toast(e.message||'No se pudo guardar'); }
+    return;
+  }
+  try{ await Store.set('proyectos', JSON.stringify(state.proyectos)); }catch(e){ toast(e.message||'No se pudo guardar'); }
+}
 async function persistGiras(){ try{ await Store.set('giras', JSON.stringify(state.giras)); }catch(e){ toast(e.message||'No se pudo guardar'); } }
 async function persistVenues(){ try{ await Store.set('venues', JSON.stringify(state.venues)); }catch(e){ toast(e.message||'No se pudo guardar'); } }
 async function persistPlanes(){ try{ await Store.set('planes', JSON.stringify(state.planesContingencia)); }catch(e){ toast(e.message||'No se pudo guardar'); } }
@@ -1196,7 +1211,11 @@ function commitV(fn){ fn(); persistVenues(); setTimeout(renderKeepFocus,0); }
 async function persistCat(){ try{ await Store.set('cat', JSON.stringify(state.cat)); }catch(e){ toast(e.message||'No se pudo guardar'); } }
 async function persistPersonas(){ try{ await Store.set('personas', JSON.stringify(state.roster)); }catch(e){ toast(e.message||'No se pudo guardar'); } }
 async function loadAll(){
-  try{ const r = await Store.get('proyectos'); state.proyectos = (JSON.parse(r.value)||[]).map(ensureProyecto); }catch(e){ state.proyectos = []; }
+  if(usandoSupabase()){
+    try{ const filas = await window.marabuntaDB.listarProyectos(); state.proyectos = filas.map(f=>ensureProyecto(f.data)); }catch(e){ state.proyectos = []; toast(e.message||'No se pudieron cargar los proyectos'); }
+  } else {
+    try{ const r = await Store.get('proyectos'); state.proyectos = (JSON.parse(r.value)||[]).map(ensureProyecto); }catch(e){ state.proyectos = []; }
+  }
   try{ const r = await Store.get('giras'); state.giras = JSON.parse(r.value)||[]; }catch(e){ state.giras = []; }
   try{ const r = await Store.get('venues'); state.venues = JSON.parse(r.value)||[]; }catch(e){ state.venues = []; }
   try{ const r = await Store.get('planes'); state.planesContingencia = JSON.parse(r.value)||[]; }catch(e){ state.planesContingencia = []; }
@@ -2192,7 +2211,7 @@ async function descargar(nombre, texto, tipo){
   }catch(e){}
   const b=new Blob([texto],{type:tipo||'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=nombre; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },500);
 }
-function commit(fn){ fn(); const p=getProyecto(); if(p) p.updatedAt=Date.now(); persistProyectos(); setTimeout(renderKeepFocus,0); }
+function commit(fn){ fn(); const p=getProyecto(); if(p) p.updatedAt=Date.now(); persistProyectos(p ? p.id : undefined); setTimeout(renderKeepFocus,0); }
 function renderKeepFocus(){
   const ae=document.activeElement; const key=(ae&&ae.dataset)?ae.dataset.k:null;
   const sy=window.scrollY;
@@ -2734,7 +2753,7 @@ function crearProyecto(){
   if(!eid){ toast('Captura el ID del evento'); return; }
   if(state.proyectos.some(p=>norm(p.eventoId)===norm(eid))){ toast('Ya existe un proyecto con ese ID'); return; }
   const p=nuevoProyecto({eventoId:eid, artista:document.getElementById('nv-art').value.trim(), cliente:document.getElementById('nv-cli').value.trim()});
-  state.proyectos.push(p); persistProyectos(); state.mostrarNuevo=false; abrirProyecto(p.id);
+  state.proyectos.push(p); persistProyectos(p.id); state.mostrarNuevo=false; abrirProyecto(p.id);
 }
 function abrirProyecto(id){ state.currentId=id; state.view='proyecto'; state.conflicto=null; state.tabProyectoVista='brief'; render(); window.scrollTo(0,0); }
 
@@ -3700,7 +3719,7 @@ function secResumen(p){
       </div></details></div>`;
 }
 function exportarProyecto(){ const p=getProyecto(); descargar((p.eventoId||'proyecto')+'_brief.json', JSON.stringify({app:'marabunta-proyecto',version:1,exportedAt:new Date().toISOString(),proyecto:p},null,1)); }
-function eliminarProyecto(){ const p=getProyecto(); pedirConfirmacion(`¿Eliminar "${p.eventoId}"? Esta acción no se puede deshacer.`, ()=>{ state.proyectos=state.proyectos.filter(x=>x.id!==p.id); persistProyectos(); ir('proyectos'); }, 'Eliminar'); }
+function eliminarProyecto(){ const p=getProyecto(); pedirConfirmacion(`¿Eliminar "${p.eventoId}"? Esta acción no se puede deshacer.`, async ()=>{ state.proyectos=state.proyectos.filter(x=>x.id!==p.id); if(usandoSupabase()){ try{ await window.marabuntaDB.eliminarProyecto(p.id); }catch(e){ toast(e.message||'No se pudo eliminar'); } } else { persistProyectos(); } ir('proyectos'); }, 'Eliminar'); }
 function imprimirResumen(){
   const p=getProyecto(); const html=document.getElementById('resumen-imprimible').outerHTML;
   const w=window.open('','_blank'); if(!w){ toast('El navegador bloqueó la ventana de impresión'); return; }
@@ -4443,7 +4462,7 @@ function importarRespaldo(file){
   }catch(e){ toast('No se pudo leer el archivo'); } };
   r.readAsText(file);
 }
-function borrarTodo(){ pedirConfirmacion('¿Borrar TODOS los proyectos de este navegador? No se puede deshacer.', ()=>{ state.proyectos=[]; persistProyectos(); toast('Proyectos borrados'); render(); }, 'Borrar todo'); }
+function borrarTodo(){ pedirConfirmacion('¿Borrar TODOS los proyectos de este navegador? No se puede deshacer.', async ()=>{ state.proyectos=[]; if(usandoSupabase()){ try{ await window.marabuntaDB.eliminarTodosLosProyectos(); }catch(e){ toast(e.message||'No se pudo borrar'); } } else { persistProyectos(); } toast('Proyectos borrados'); render(); }, 'Borrar todo'); }
 
 /* ---------------- Arranque ---------------- */
 // Menú del topbar: se abre al pasar el cursor (desktop) o al tocar el ícono (móvil/touch);
