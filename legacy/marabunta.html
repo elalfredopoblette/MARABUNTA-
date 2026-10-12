@@ -588,7 +588,9 @@
 </div>
 <div id="app"></div>
 <div id="toast" class="toast"></div>
+<div id="guardandoIndicator" style="display:none; position:fixed; bottom:16px; left:16px; z-index:999; background:#1f2937; color:#fff; padding:8px 14px; border-radius:20px; font-size:13px; box-shadow:0 2px 8px rgba(0,0,0,.3);">Guardando…</div>
 <script src="/src/supabase-config.js"></script>
+<script src="/src/supabase-pending.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="/src/supabase-client.js"></script>
 <script src="/src/supabase-store.js"></script>
@@ -4472,6 +4474,23 @@ document.addEventListener('click', (e)=>{
   if(e.target.closest('.hover-handle')){ hr.classList.toggle('open'); return; }
   if(!e.target.closest('.hover-reveal')) hr.classList.remove('open');
 });
+// ---------- Aviso de guardado pendiente ----------
+// Guardar ahora viaja por internet (antes era instantáneo, local). Si se
+// cierra la pestaña justo después de capturar algo, ese guardado puede
+// quedar a la mitad y perderse. Esto muestra un indicador mientras hay
+// guardados en vuelo, y avisa al navegador que no cierre todavía si se
+// intenta cerrar con algo pendiente.
+window.addEventListener('marabunta:pending-change', (e)=>{
+  const el = document.getElementById('guardandoIndicator');
+  if(el) el.style.display = e.detail.pendientes > 0 ? 'block' : 'none';
+});
+window.addEventListener('beforeunload', (e)=>{
+  if((window.marabuntaPendingWrites||0) > 0){
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
 async function arrancarApp(){
   await loadAll();
   document.body.classList.toggle('theme-light', state.theme==='light');

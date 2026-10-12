@@ -80,31 +80,37 @@
       return data;
     },
     async guardarProyecto(proyecto) {
-      // proyecto.data debe ser el objeto completo que hoy produce ensureProyecto().
-      const payload = {
-        id: proyecto.id,
-        company_id: await miCompanyId(),
-        nombre: proyecto.nombre || proyecto.data?.artista || proyecto.data?.eventoId || '',
-        estado: proyecto.data?.estado || 'prospecto',
-        data: proyecto.data,
-        updated_at: new Date().toISOString(),
-      };
-      const { data, error } = await client
-        .from('proyectos')
-        .upsert(payload)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+      return window.marabuntaTrackWrite((async () => {
+        // proyecto.data debe ser el objeto completo que hoy produce ensureProyecto().
+        const payload = {
+          id: proyecto.id,
+          company_id: await miCompanyId(),
+          nombre: proyecto.nombre || proyecto.data?.artista || proyecto.data?.eventoId || '',
+          estado: proyecto.data?.estado || 'prospecto',
+          data: proyecto.data,
+          updated_at: new Date().toISOString(),
+        };
+        const { data, error } = await client
+          .from('proyectos')
+          .upsert(payload)
+          .select()
+          .single();
+        if (error) throw error;
+        return data;
+      })());
     },
     async eliminarProyecto(id) {
-      const { error } = await client.from('proyectos').delete().eq('id', id);
-      if (error) throw error;
+      return window.marabuntaTrackWrite((async () => {
+        const { error } = await client.from('proyectos').delete().eq('id', id);
+        if (error) throw error;
+      })());
     },
     async eliminarTodosLosProyectos() {
-      const cid = await miCompanyId();
-      const { error } = await client.from('proyectos').delete().eq('company_id', cid);
-      if (error) throw error;
+      return window.marabuntaTrackWrite((async () => {
+        const cid = await miCompanyId();
+        const { error } = await client.from('proyectos').delete().eq('company_id', cid);
+        if (error) throw error;
+      })());
     },
 
     // ---- Roster, proveedores, venues, giras, catálogo de áreas ----

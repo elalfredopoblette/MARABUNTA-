@@ -3,11 +3,12 @@
 // Por eso no hace falta tocar persistProyectos(), persistPersonas(), etc. —
 // solo apuntar `const Store = ...` a window.SupabaseStore cuando haya sesión.
 //
-// Guarda cada colección completa (proyectos, personas, giras, venues, ...)
-// como un bloque en app_state, igual que hacía IndexedDB. Es el paso de
-// menor riesgo para tener persistencia real y compartida ya; separar cada
-// proyecto en su propia fila (tabla `proyectos` de schema.sql) es el
-// siguiente paso, una vez que esto esté probado con el equipo.
+// Guarda cada colección completa (personas, giras, venues, planes,
+// proveedoresRoster, catálogo) como un bloque en app_state, igual que hacía
+// IndexedDB. Proyectos es la excepción: desde que se separó en filas propias
+// (tabla `proyectos`), legacy/marabunta.html lo maneja aparte, directo con
+// window.marabuntaDB, y nunca pasa por aquí. Las demás colecciones son el
+// siguiente candidato a separar en filas, una vez que esto esté probado.
 //
 // Carga ANTES de este archivo, en este orden:
 //   1. src/supabase-config.js
@@ -48,18 +49,22 @@
       return { key, value: data.value, shared: true };
     },
     async set(key, value) {
-      const cid = await companyId();
-      const { error } = await client
-        .from('app_state')
-        .upsert({ company_id: cid, key, value, updated_at: new Date().toISOString() }, { onConflict: 'company_id,key' });
-      if (error) throw error;
-      return { key, value, shared: true };
+      return window.marabuntaTrackWrite((async () => {
+        const cid = await companyId();
+        const { error } = await client
+          .from('app_state')
+          .upsert({ company_id: cid, key, value, updated_at: new Date().toISOString() }, { onConflict: 'company_id,key' });
+        if (error) throw error;
+        return { key, value, shared: true };
+      })());
     },
     async delete(key) {
-      const cid = await companyId();
-      const { error } = await client.from('app_state').delete().eq('company_id', cid).eq('key', key);
-      if (error) throw error;
-      return { key, deleted: true, shared: true };
+      return window.marabuntaTrackWrite((async () => {
+        const cid = await companyId();
+        const { error } = await client.from('app_state').delete().eq('company_id', cid).eq('key', key);
+        if (error) throw error;
+        return { key, deleted: true, shared: true };
+      })());
     },
   };
 })();
