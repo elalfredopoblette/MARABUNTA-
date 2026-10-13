@@ -600,11 +600,11 @@ const BRAND_LOGO_SVG = `<span style="font-family:var(--font-title);font-weight:8
 // y localStorage / memoria como último recurso. ----------
 const memoryFallback = new Map();
 let localStorageWorks = true;
-try{ localStorage.setItem('ebsbrief:__test__','1'); localStorage.removeItem('ebsbrief:__test__'); }catch(e){ localStorageWorks = false; }
+try{ localStorage.setItem('marabunta:__test__','1'); localStorage.removeItem('marabunta:__test__'); }catch(e){ localStorageWorks = false; }
 const LocalStorageShim = {
   async get(key){
     if(localStorageWorks){
-      try{ const v = localStorage.getItem('ebsbrief:'+key); if(v!==null) return {key, value:v, shared:false}; }catch(e){}
+      try{ const v = localStorage.getItem('marabunta:'+key); if(v!==null) return {key, value:v, shared:false}; }catch(e){}
     }
     if(memoryFallback.has(key)) return {key, value:memoryFallback.get(key), shared:false};
     throw new Error('not found');
@@ -612,7 +612,7 @@ const LocalStorageShim = {
   async set(key,value){
     if(localStorageWorks){
       try{
-        localStorage.setItem('ebsbrief:'+key, value);
+        localStorage.setItem('marabunta:'+key, value);
         memoryFallback.delete(key);
         return {key,value,shared:false};
       }catch(e){
@@ -624,7 +624,7 @@ const LocalStorageShim = {
     return {key,value,shared:false};
   },
   async delete(key){
-    if(localStorageWorks){ try{ localStorage.removeItem('ebsbrief:'+key); }catch(e){} }
+    if(localStorageWorks){ try{ localStorage.removeItem('marabunta:'+key); }catch(e){} }
     memoryFallback.delete(key);
     return {key,deleted:true,shared:false};
   }
@@ -634,7 +634,7 @@ let idbInstance = null;
 let idbAvailable = typeof indexedDB !== 'undefined';
 const idbReady = idbAvailable ? new Promise((resolve) => {
   try{
-    const req = indexedDB.open('ebsbrief_db', 1);
+    const req = indexedDB.open('marabunta_db', 1);
     req.onupgradeneeded = () => { if(!req.result.objectStoreNames.contains('kv')) req.result.createObjectStore('kv', {keyPath:'key'}); };
     req.onsuccess = () => { idbInstance = req.result; resolve(true); };
     req.onerror = () => { idbAvailable = false; resolve(false); };
@@ -975,7 +975,7 @@ function detectarMapa(headers){
   });
   return map;
 }
-const AREA_ALIASES = {'ebs':'ops', 'ebs group':'ops', 'administracion':'ops', 'admin':'ops'};
+const AREA_ALIASES = {'administracion':'ops', 'admin':'ops'};
 function areaDesdeTexto(txt){
   const n=norm(txt); if(!n) return '';
   if(AREA_ALIASES[n]) return AREA_ALIASES[n];
@@ -4113,8 +4113,8 @@ function importarProyectosArchivo(){
   inp.onchange=()=>{ if(!inp.files[0]) return; const r=new FileReader();
     r.onload=()=>{ try{
       const d=JSON.parse(r.result); let lista=[];
-      if((d.app==='marabunta-proyecto'||d.app==='ebs-brief-proyecto') && d.proyecto) lista=[d.proyecto];
-      else if((d.app==='marabunta-proyectos'||d.app==='ebs-brief-todos') && Array.isArray(d.proyectos)) lista=d.proyectos;
+      if(d.app==='marabunta-proyecto' && d.proyecto) lista=[d.proyecto];
+      else if(d.app==='marabunta-proyectos' && Array.isArray(d.proyectos)) lista=d.proyectos;
       else { toast('Ese archivo no es un proyecto de esta app'); return; }
       let nuevos=0, act=0;
       lista.forEach(pr=>{
@@ -4422,7 +4422,7 @@ function importarRosterJSON(file){
   if(!file) return; const r=new FileReader();
   r.onload=()=>{ try{
     const d=JSON.parse(r.result);
-    if(d.app!=='marabunta-roster' && d.app!=='ebs-roster'){ toast('Ese archivo no es un roster de esta app'); return; }
+    if(d.app!=='marabunta-roster'){ toast('Ese archivo no es un roster de esta app'); return; }
     pedirConfirmacion('Esto reemplaza todo el roster actual. ¿Continuar?', ()=>{
       state.cat=Object.assign(catDefault(), d.cat||{}); state.roster=(d.personas||[]).map(ensurePersona);
       persistCat(); persistPersonas(); toast('Roster importado'); render();
@@ -4449,7 +4449,7 @@ function importarRespaldo(file){
   if(!file) return; const r=new FileReader();
   r.onload=()=>{ try{
     const d=JSON.parse(r.result);
-    if((d.app==='marabunta-proyectos'||d.app==='ebs-brief-todos') && Array.isArray(d.proyectos)){
+    if(d.app==='marabunta-proyectos' && Array.isArray(d.proyectos)){
       pedirConfirmacion('Esto reemplaza TODOS tus proyectos actuales. ¿Continuar?', ()=>{
         state.proyectos=d.proyectos.map(ensureProyecto);
         if(Array.isArray(d.giras)){ state.giras=d.giras; persistGiras(); }
