@@ -1,6 +1,6 @@
 # Marabunta
 
-Plataforma operativa para EBS Group — planeación de proyectos, costeo, roster/crew, ruta crítica, mockup isométrico de estructuras, documentación operativa (protocolos de clima, estaciones WeatherLink) y proveedores.
+Plataforma operativa para equipos de producción técnica de eventos (Tour Managers, Project Managers, Production Managers) — planeación de proyectos, costeo, roster/crew, ruta crítica, mockup isométrico de estructuras, documentación operativa (protocolos de clima, estaciones WeatherLink) y proveedores.
 
 ## Estado actual
 
@@ -20,7 +20,7 @@ La versión actual usa IndexedDB en el navegador: sin cuentas, sin sincronizaci�
 
 - **Backend / DB:** Supabase (Postgres administrado + autenticación incluida) — proyecto ya creado
 - **Hosting:** Vercel (capa gratuita), desplegado directo desde este repo
-- **Alcance v1:** una sola empresa (EBS). Cada tabla incluye una columna `company_id` desde el día uno para que soportar multi-empresa después sea un cambio de permisos/UI, no una migración de datos.
+- **Alcance v1:** una sola empresa cliente a la vez. Cada tabla incluye una columna `company_id` desde el día uno para que soportar multi-empresa después sea un cambio de permisos/UI, no una migración de datos.
 - **Dominio:** URL gratuita por ahora (sin dominio propio todavía)
 
 Ver `docs/architecture.md` para el razonamiento completo.

@@ -29,7 +29,7 @@
     --input-bg:#000000;
     --total-bg:#1c2400; --total-cell-bg:#141a00;
     --accent-text:#B7F600;
-    --ebs-tint: rgba(183,246,0,0.14);
+    --accent-tint: rgba(183,246,0,0.14);
   }
   body.theme-light{
     --surf-0:#f4f5f6; --surf-1:#ffffff; --surf-2:#eef0f1; --surf-3:#e9ebec; --surf-4:#e2e4e6; --surf-5:#eef0f1;
@@ -39,7 +39,7 @@
     --input-bg:#ffffff;
     --total-bg:#e9f6c4; --total-cell-bg:#f2f9dd;
     --accent-text:#5c7a00;
-    --ebs-tint: rgba(92,122,0,0.10);
+    --accent-tint: rgba(92,122,0,0.10);
   }
   *{box-sizing:border-box;}
   body{margin:0;background:var(--surf-0);color:var(--text-1);font-family:var(--font-body);transition:background .15s,color .15s;}
@@ -129,9 +129,6 @@
   .print-cover-area-chip{display:inline-flex;align-items:center;gap:6px;background:#000;color:#B7F600;font-size:10px;padding:5px 10px;font-family:var(--font-sub);text-transform:uppercase;font-weight:700;border-radius:2px;margin:0 6px 8px 0;}
   .print-cover-area-chip span{color:#fff;font-weight:400;}
   .print-cover-bottom-bar{display:flex;align-items:center;gap:22px;margin-top:70px;padding-top:14px;border-top:1.5px solid #000;}
-  .print-cover-logo-ebs{height:32px;}
-  .print-cover-logo-ebs svg{height:100%;width:auto;display:block;}
-  .print-cover-logo-ebs svg path{fill:#000 !important;}
   .print-cover-disclaimer{flex:1;font-family:var(--font-body);font-size:11px;line-height:1.5;color:#666;}
   .print-cover-grid{display:grid;grid-template-columns:minmax(200px,1fr) auto;gap:28px;align-items:start;}
   .print-cover-flyer{border-radius:6px;overflow:hidden;border:1px solid #ddd;max-height:400px;display:flex;background:#fafafa;}
@@ -225,7 +222,7 @@
   .total-box .value{font-size:20px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums;color:var(--accent-text);}
   .total-box.general{background:var(--total-bg);border-color:var(--lime);}
 
-  .warning-box{border:1px solid var(--lime);background:var(--ebs-tint);padding:10px 14px;border-radius:4px;font-size:12px;color:var(--accent-text);margin:10px 0;font-family:var(--font-body);}
+  .warning-box{border:1px solid var(--lime);background:var(--accent-tint);padding:10px 14px;border-radius:4px;font-size:12px;color:var(--accent-text);margin:10px 0;font-family:var(--font-body);}
 
   .areas-tag{display:inline-flex;align-items:center;gap:6px;background:var(--surf-card);border:1px solid var(--border-c);border-radius:20px;padding:4px 10px 4px 12px;margin:2px 6px 2px 0;font-size:12px;}
   .areas-tag button{padding:2px 6px;font-size:10px;}
@@ -272,7 +269,7 @@
   .daycell-weekday{font-family:var(--font-sub);font-size:9px;color:var(--text-2);text-transform:uppercase;letter-spacing:0.5px;}
   .daycell-daynum{font-size:12px;color:var(--text-1);font-weight:700;font-variant-numeric:tabular-nums;}
   .daycell-bulk-select{width:100%;font-size:10px;padding:3px 4px;min-width:0;}
-  .auto-cell{background:var(--ebs-tint);}
+  .auto-cell{background:var(--accent-tint);}
   .auto-cell input{color:var(--accent-text);font-style:italic;}
   input:disabled{opacity:0.35;cursor:not-allowed;background:var(--surf-3);}
 
@@ -309,7 +306,7 @@
   .pill.good{background:#C6EFCE;color:#006100;}
   .app-table tr.row-baja{opacity:.55;}
   .drop-zone{border:2px dashed var(--border-strong);border-radius:6px;padding:34px 20px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;}
-  .drop-zone:hover,.drop-zone.over{border-color:var(--lime);background:var(--ebs-tint);}
+  .drop-zone:hover,.drop-zone.over{border-color:var(--lime);background:var(--accent-tint);}
   .cfg-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;} .cfg-row input,.cfg-row select{flex:1;min-width:130px;}
   .btn-mini{background:var(--surf-3);border:1px solid var(--border-c);color:var(--text-2);border-radius:3px;width:24px;height:24px;cursor:pointer;font-size:12px;padding:0;}
   .btn-mini:hover{border-color:var(--lime);color:var(--accent-text);}
@@ -325,14 +322,14 @@
   .planner-meals{display:flex;flex-direction:column;gap:2px;} .planner-meals input{width:100px;font-size:10px;padding:3px 4px;}
   .planner-cargo select{width:70px;font-size:10px;} .planner-cargo input{width:100px;font-size:10px;margin-top:2px;}
   .planner-cargo{display:flex;flex-direction:column;gap:2px;}
-  .auto-cell{background:var(--ebs-tint)!important;}
+  .auto-cell{background:var(--accent-tint)!important;}
 
   /* ============ Marabunta — sistema de marca (BVI v1.0) ============
-     Reemplaza el lima/negro de EBS por el sistema monocromático + acentos funcionales de Marabunta.
+     Reemplaza la paleta anterior por el sistema monocromático + acentos funcionales de Marabunta.
      Azul eléctrico = estado activo / CTA. Ámbar industrial = advertencia / crítico. Nunca decorativos. */
   :root{
     --black:#101010; --lime:#007BFF; --blue:#007BFF; --accent-text:#007BFF;
-    --ebs-tint: rgba(0,123,255,0.14); --warn:#FF9F0A; --warn-tint: rgba(255,159,10,0.16);
+    --accent-tint: rgba(0,123,255,0.14); --warn:#FF9F0A; --warn-tint: rgba(255,159,10,0.16);
     --total-bg:#0a1f33; --total-cell-bg:#071626;
     --font-title:'Montserrat', 'Inter', sans-serif; --font-sub:'Montserrat', 'Inter', sans-serif;
     --font-body:'Inter', -apple-system, sans-serif; --font-mono:'JetBrains Mono', ui-monospace, monospace;
@@ -349,7 +346,7 @@
   /* El modo claro tenía su propio verde-lima sin tocar — se corrige aparte porque sus variables van
      después del bloque base en el CSS original. */
   body.theme-light{
-    --total-bg:#dbeafe; --total-cell-bg:#eff6ff; --accent-text:#0056b3; --ebs-tint: rgba(0,123,255,0.08);
+    --total-bg:#dbeafe; --total-cell-bg:#eff6ff; --accent-text:#0056b3; --accent-tint: rgba(0,123,255,0.08);
   }
   .pill.good{background:#e8e8ea;color:#101010;}
   body.theme-light .pill.good{background:#eef0f1;color:#101010;}
@@ -389,7 +386,7 @@
   .cal-cell{background:var(--surf-card);min-height:80px;padding:4px;font-size:11px;}
   .cal-cell-empty{background:var(--surf-2);}
   .cal-cell-num{color:var(--text-2);margin-bottom:2px;}
-  .cal-cell-chip{background:var(--ebs-tint);color:var(--accent-text);border-radius:3px;padding:1px 4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}
+  .cal-cell-chip{background:var(--accent-tint);color:var(--accent-text);border-radius:3px;padding:1px 4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}
 
   /* ============ Dashboard de eficiencia del Tracker ============ */
   .dash-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
@@ -532,7 +529,7 @@
   .btn-nav-grande{font-size:14px;padding:10px 18px;flex:1 0 100%;}
 
   /* ============ Proveedores ============ */
-  .chip-prov{display:inline-block;background:var(--ebs-tint);color:var(--accent-text);border-radius:10px;padding:1px 8px;font-size:10px;font-weight:700;margin-left:4px;}
+  .chip-prov{display:inline-block;background:var(--accent-tint);color:var(--accent-text);border-radius:10px;padding:1px 8px;font-size:10px;font-weight:700;margin-left:4px;}
   .chips-edit{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;}
   .chip-tag{display:inline-flex;align-items:center;gap:4px;background:var(--surf-3);border:1px solid var(--border-c);border-radius:14px;padding:4px 6px 4px 12px;font-size:12px;}
   .chip-tag button{background:none;border:none;color:var(--text-2);cursor:pointer;font-size:14px;padding:0 4px;}
@@ -575,7 +572,7 @@
 <div id="loginOverlay">
   <div class="login-box">
     <h1>Marabunta</h1>
-    <p class="sub">EBS Group — inicia sesión para continuar</p>
+    <p class="sub">Inicia sesión para continuar</p>
     <form id="loginForm">
       <label for="loginEmail">Correo</label>
       <input id="loginEmail" name="email" type="email" required autocomplete="username" />
@@ -1155,7 +1152,7 @@ function nuevoPlanContingencia(d){ return Object.assign({
   niveles: [], // [{id,nombre,rango,acciones}] — filas de la tabla (niveles de un protocolo, o renglones de un documento)
   protocolo: '', // texto libre simple — para planes de un solo bloque (sismos, seguridad, etc.)
   notas: '', // notas adicionales debajo de la tabla de niveles (monitoreo, comunicación, reanudación...)
-  estacion: '' // nombre de la estación WeatherLink activa para el proyecto actual (ej. EBS_001) — solo lo usa ese protocolo
+  estacion: '' // nombre de la estación WeatherLink activa para el proyecto actual (ej. EST_001) — solo lo usa ese protocolo
 }, d||{}); }
 function planById(id){ return state.planesContingencia.find(x=>x.id===id) || null; }
 function commitP(fn){ fn(); persistPlanes(); setTimeout(renderKeepFocus,0); }
@@ -1170,7 +1167,7 @@ function sembrarPlanesDefault(){
         nuevoNivelPlan({nombre:'Suspensión de Actividades', rango:'50 – 65 km/h', acciones:'Suspender actividades en escenario. Despejar personal no esencial. Retirar elementos con carga de viento. Evaluación por Jefe de Steel.'}),
         nuevoNivelPlan({nombre:'Condición Crítica', rango:'>65 km/h', acciones:'Evacuación de escenario y áreas cercanas. Suspensión total de operación. Personal fuera de estructuras. Revisión antes de retomar actividades.'}),
       ],
-      notas:'Los rangos de viento indicados son vientos sostenidos medidos en ventanas de 3 a 5 segundos.\n\nMonitoreo: Jefe de Steel y Project Manager son responsables de monitorear condiciones de viento mediante anemómetro en sitio y el sistema de monitoreo meteorológico. Se considera: viento sostenido, ráfagas, dirección, probabilidad y cantidad de precipitación, riesgo de tormenta eléctrica, temperatura aparente.\n\nComunicación: Toda alerta de viento se comunica de inmediato a Production Manager, Stage Manager, Site Coordinator y Personal Interno EBS.\n\nReanudación de actividades: solo cuando el viento baje de 40 km/h, se inspeccione visualmente la estructura, y Jefe de Steel y Project Manager autoricen continuar.\n\nImportante: no modificar la estructura durante condiciones de viento fuerte (bajar techos, agregar tirantes, etc.).'
+      notas:'Los rangos de viento indicados son vientos sostenidos medidos en ventanas de 3 a 5 segundos.\n\nMonitoreo: Jefe de Steel y Project Manager son responsables de monitorear condiciones de viento mediante anemómetro en sitio y el sistema de monitoreo meteorológico. Se considera: viento sostenido, ráfagas, dirección, probabilidad y cantidad de precipitación, riesgo de tormenta eléctrica, temperatura aparente.\n\nComunicación: Toda alerta de viento se comunica de inmediato a Production Manager, Stage Manager, Site Coordinator y personal interno en sitio.\n\nReanudación de actividades: solo cuando el viento baje de 40 km/h, se inspeccione visualmente la estructura, y Jefe de Steel y Project Manager autoricen continuar.\n\nImportante: no modificar la estructura durante condiciones de viento fuerte (bajar techos, agregar tirantes, etc.).'
     }),
     nuevoPlanContingencia({
       nombre:'Rayos', icono:'⚡',
@@ -1302,9 +1299,9 @@ function nuevaAreaProyecto(nombre, tipo, id){ return {id: id||uuid(), nombre, ti
 // ============ Planner (Requerimientos Operativos), nativo del proyecto ============
 // Mismos rubros y secciones que la app de Requerimientos Operativos; las columnas de fecha
 // se toman directo del calendario del proyecto — no hay un calendario aparte que mantener.
-const RUBROS_EBS_PL = ['Steel','Towers'];
+const RUBROS_STEEL_PL = ['Steel','Towers'];
 const RUBROS_EPS_PL = ['Drivable Flooring','Pedestrian Flooring','Crowd Control','Cable Protectors'];
-const RUBROS_ALL_PL = [...RUBROS_EBS_PL.map(l=>({label:l})), ...RUBROS_EPS_PL.map(l=>({label:l}))];
+const RUBROS_ALL_PL = [...RUBROS_STEEL_PL.map(l=>({label:l})), ...RUBROS_EPS_PL.map(l=>({label:l}))];
 const MAQUINARIA_CATALOGO = ['Montacargas','Telehandler','Camioneta para Traspaleo','Plataforma Articulada (tipo Genie)','Plataforma Tijera (tipo Genie)','Grúa Telescópica','Otro'];
 const CARGO_UNIT_TYPES = [
   'Nissan Plataforma sin Redilas 1 Tonelada','Nissan Plataforma con Redilas 1 Tonelada',
@@ -2358,7 +2355,7 @@ function viewHome(m){
         <h2 class="section-title">Conflictos de disponibilidad</h2>
         <div class="card">${conflictos.length?conflictos.map(filaConflicto).join(''):'<p class="muted small">Sin conflictos detectados entre tus proyectos.</p>'}</div>
         <h2 class="section-title">Novedades</h2>
-        <div class="card"><p class="muted small">Aquí verás noticias de EBS y shows de tus colaboradores cuando Marabunta esté en línea.</p></div>
+        <div class="card"><p class="muted small">Aquí verás noticias de tu equipo y shows de tus colaboradores cuando Marabunta esté en línea.</p></div>
       </div>
     </div>`;
 }
@@ -2409,7 +2406,7 @@ function viewPlanDetalle(m){
         <div class="form-group"><label>Ícono</label><input value="${esc(pl.icono)}" style="width:70px;text-align:center" onchange="setPlanCampo('${pl.id}','icono',this.value)" autocomplete="off"></div>
         <div class="form-group" style="flex:1"><label>Nombre</label><input value="${esc(pl.nombre)}" style="width:100%" onchange="setPlanCampo('${pl.id}','nombre',this.value)" autocomplete="off"></div>
       </div>
-      ${pl.nombre==='Estación meteorológica (WeatherLink)' ? `<div class="form-group"><label>Nombre de la estación activa (busca esto en la app WeatherLink)</label><input value="${esc(pl.estacion)}" style="min-width:200px" placeholder="Ej. EBS_001" onchange="setPlanCampo('${pl.id}','estacion',this.value)" autocomplete="off"></div>` : ''}
+      ${pl.nombre==='Estación meteorológica (WeatherLink)' ? `<div class="form-group"><label>Nombre de la estación activa (busca esto en la app WeatherLink)</label><input value="${esc(pl.estacion)}" style="min-width:200px" placeholder="Ej. EST_001" onchange="setPlanCampo('${pl.id}','estacion',this.value)" autocomplete="off"></div>` : ''}
       <p class="hint">Usa la tabla de niveles para planes escalonados (como Viento: umbrales con acciones para cada uno). Si tu plan es un solo bloque de texto (como Sismos o Seguridad), déjala vacía y usa el "Protocolo" de abajo.</p>
       <h4 class="mini-title">Niveles</h4>
       <div class="row" style="margin-bottom:8px">${[0,1,2].map(i=>`<div class="form-group"><label>Columna ${i+1}</label><input value="${esc(cl[i])}" style="width:140px" onchange="setColLabelPlan('${pl.id}',${i},this.value)" autocomplete="off"></div>`).join('')}</div>
@@ -2466,7 +2463,7 @@ function eliminarVenue(id){
     ir('venues');
   }, 'Eliminar');
 }
-// ---- Importar venues desde un respaldo tipo "ebs-venues-only" (u otro con forma de lista/objeto de venues).
+// ---- Importar venues desde un respaldo tipo "solo-venues" (u otro con forma de lista/objeto de venues).
 // Las fotos y puntos de acceso con foto no se importan por ahora — solo el texto.
 function importarVenueDesdeJSON(v){
   const transito = [v.transitoHorario, v.transitoNotas].filter(x=>x&&x.trim()).join(' — ');

@@ -12,7 +12,7 @@ create table companies (
   created_at  timestamptz not null default now()
 );
 
-insert into companies (nombre) values ('EBS Group');
+insert into companies (nombre) values ('Empresa de prueba');
 
 -- ========== Perfiles de usuario (1:1 con auth.users de Supabase) ==========
 create table profiles (

@@ -5,22 +5,22 @@
 | Capa | Tecnología | Por qué |
 |---|---|---|
 | Base de datos | **Supabase (Postgres)** | Postgres real y administrado, con autenticación incluida (no hay que construir login/sesiones a mano) y una API REST/JS autogenerada sobre la base de datos (PostgREST), así que para v1 no necesitamos un backend propio aparte. |
-| Autenticación | **Supabase Auth** | Email/password o magic link, suficiente para el equipo de EBS. Cada fila queda asociada a un usuario real. |
+| Autenticación | **Supabase Auth** | Email/password o magic link, suficiente para el equipo de prueba inicial. Cada fila queda asociada a un usuario real. |
 | Frontend / hosting | **Vercel** (capa gratuita) | Despliegue automático en cada push a `main` desde este repo de GitHub. URL gratuita (`marabunta.vercel.app` o similar) hasta que se conecte un dominio propio. |
 | Control de acceso a datos | **Row Level Security (RLS) de Postgres** | En vez de escribir reglas de permisos en un backend, se escriben como políticas en la base de datos — más difícil de saltarse por accidente. |
 
-No se eligió un backend separado (FastAPI, Node, etc.) para v1: Supabase ya da base de datos + auth + API, y eso es suficiente para una sola empresa con un equipo razonable de usuarios. Si más adelante se necesita lógica de negocio que no puede vivir en el navegador (por ejemplo, generación de PDFs del lado del servidor, integraciones con terceros, trabajos programados), se agregan **Supabase Edge Functions** sin tener que montar un servidor aparte.
+No se eligió un backend separado (FastAPI, Node, etc.) para v1: Supabase ya da base de datos + auth + API, y eso es suficiente para una sola empresa cliente con un equipo razonable de usuarios. Si más adelante se necesita lógica de negocio que no puede vivir en el navegador (por ejemplo, generación de PDFs del lado del servidor, integraciones con terceros, trabajos programados), se agregan **Supabase Edge Functions** sin tener que montar un servidor aparte.
 
 ## Principio de diseño: multi-empresa desde el día uno, sin construirlo todavía
 
-v1 es solo para EBS. Pero cada tabla que representa datos de negocio (no catálogos globales del sistema) tiene una columna `company_id`. Esto significa que:
+v1 corre con una sola empresa cliente (la que esté probando el producto). Pero cada tabla que representa datos de negocio (no catálogos globales del sistema) tiene una columna `company_id`. Esto significa que:
 
-- Hoy: todas las filas tienen el mismo `company_id` (el de EBS).
-- El día que se necesite una segunda empresa: es un cambio de permisos (RLS) y de UI (selector de empresa), no una migración de esquema ni una reescritura de datos.
+- Hoy: todas las filas tienen el mismo `company_id` (el de esa empresa de prueba).
+- El día que se necesite una segunda empresa cliente: es un cambio de permisos (RLS) y de UI (selector de empresa), no una migración de esquema ni una reescritura de datos.
 
 ## Principio de diseño: documento JSONB por "aggregate", no normalización total todavía
 
-La app actual (`legacy/marabunta.html`) tiene una forma de datos muy anidada y todavía cambiante: cada proyecto tiene áreas con sub-grupos variables, requerimientos genéricos por área, secciones de planner con celdas por fecha, etc. Esa forma ha cambiado de versión en versión conforme se descubren necesidades reales del negocio (igual que está pasando en el otro repo de modelado de EBS OPS).
+La app actual (`legacy/marabunta.html`) tiene una forma de datos muy anidada y todavía cambiante: cada proyecto tiene áreas con sub-grupos variables, requerimientos genéricos por área, secciones de planner con celdas por fecha, etc. Esa forma ha cambiado de versión en versión conforme se descubren necesidades reales del negocio de producción técnica de eventos.
 
 Normalizar todo esto en tablas relacionales ahora — antes de que la forma esté estable — significaría una migración de esquema cada vez que cambie un detalle del Brief o del Planner. En vez de eso, v1 de la migración usa un patrón intermedio:
 
