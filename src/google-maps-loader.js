@@ -15,6 +15,15 @@
     if (typeof render === 'function') render();
   };
 
+  // Google llama ESTE callback específicamente cuando la key es rechazada
+  // (restricción de dominio, API no habilitada, billing, key inválida...).
+  // Lo mostramos directo en la app con toast() porque en el navegador del
+  // celular no siempre hay forma fácil de abrir la consola de errores.
+  window.gm_authFailure = function () {
+    const msg = 'Google Maps rechazó la key configurada (revisa restricciones/API habilitadas en Cloud Console).';
+    if (typeof toast === 'function') toast(msg); else alert(msg);
+  };
+
   const s = document.createElement('script');
   s.src = 'https://maps.googleapis.com/maps/api/js?key=' +
     encodeURIComponent(window.MARABUNTA_GOOGLE_MAPS_KEY) +
