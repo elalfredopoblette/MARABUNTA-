@@ -1,0 +1,46 @@
+// Proxy hacia AeroDataBox (RapidAPI) para consultar el status de un vuelo
+// por número + fecha, SIN exponer la key de RapidAPI al navegador — esa key
+// no se puede restringir por dominio como la de Google Maps, así que tiene
+// que vivir aquí, del lado del servidor, no en legacy/marabunta.html.
+//
+// Despliegue (desde el Dashboard de Supabase, sin necesidad de CLI/terminal):
+//   1. Edge Functions → Create a new function → nombre: vuelo-status
+//   2. Pega este archivo completo como el código de la función → Deploy.
+//   3. Project Settings → Edge Functions → Secrets → agrega:
+//        AERODATABOX_KEY = <tu x-api-key de RapidAPI para AeroDataBox>
+//
+// Uso desde la app: GET /functions/v1/vuelo-status?numero=AM123&fecha=2026-11-10
+
+const CORS_HEADERS: Record<string, string> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS });
+
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), { status, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+
+  try {
+    const url = new URL(req.url);
+    const numero = url.searchParams.get('numero'); // ej. AM123
+    const fecha = url.searchParams.get('fecha');    // ej. 2026-11-10 (YYYY-MM-DD)
+    if (!numero || !fecha) return json({ error: 'Faltan parámetros: numero y fecha' }, 400);
+
+    const key = Deno.env.get('AERODATABOX_KEY');
+    if (!key) return json({ error: 'AERODATABOX_KEY no está configurada en los secretos del proyecto' }, 500);
+
+    const apiUrl = `https://aerodatabox.p.rapidapi.com/flights/number/${encodeURIComponent(numero)}/${encodeURIComponent(fecha)}`;
+    const resp = await fetch(apiUrl, {
+      headers: {
+        'x-rapidapi-host': 'aerodatabox.p.rapidapi.com',
+        'x-rapidapi-key': key,
+      },
+    });
+    const data = await resp.json();
+    return json(data, resp.status);
+  } catch (e) {
+    return json({ error: String(e) }, 500);
+  }
+});

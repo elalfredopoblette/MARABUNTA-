@@ -3343,7 +3343,34 @@ function panelViaje(f, iso, setterViaje){
       <option value="otro"${v.tipo==='otro'?' selected':''}>Otro</option>
     </select>${campos}
     ${v.tipo?`<input placeholder="Link de rastreo (opcional)" value="${esc(v.link)}" onchange="${setterViaje}('${iso}','link',this.value)" autocomplete="off">`:''}
+    ${v.tipo==='vuelo' && v.numero ? `<div style="margin-top:3px">
+      <button class="btn btn-ghost btn-sm" type="button" style="font-size:9px;padding:2px 6px" data-setter="${esc(setterViaje)}" onclick="consultarVueloClick(this,'${iso}','${esc(v.numero)}')">Ver status del vuelo</button>
+      ${v.statusVuelo?`<div class="muted small" style="margin-top:2px">${esc(v.statusVuelo)}</div>`:''}
+    </div>` : ''}
   </div>`;
+}
+async function consultarVueloClick(btn, iso, numero){
+  if(!window.marabuntaDB || !window.marabuntaDB.consultarEstadoVuelo){ toast('Esta función necesita que estés conectado (inicia sesión).'); return; }
+  let setter; try{ setter = new Function('return (' + btn.dataset.setter + ')')(); }catch(e){ return; }
+  const textoOriginal = btn.textContent; btn.disabled = true; btn.textContent = 'Consultando…';
+  try{
+    const r = await window.marabuntaDB.consultarEstadoVuelo(numero, iso);
+    const f = Array.isArray(r) ? r[0] : r;
+    setter('statusVuelo', f ? resumenVuelo(f) : 'Sin datos para ese vuelo en esa fecha.');
+  }catch(e){
+    toast(e.message || 'No se pudo consultar el vuelo');
+    btn.disabled = false; btn.textContent = textoOriginal;
+  }
+}
+// Arma una línea legible a partir de la respuesta de AeroDataBox — defensivo
+// porque es la primera vez que se conecta esta API y conviene no tronar si
+// algún campo viene en una forma distinta a la esperada.
+function resumenVuelo(f){
+  const dep = f.departure||{}, arr = f.arrival||{};
+  const horaSalida = dep.scheduledTime?.local || dep.scheduledTimeLocal || '';
+  const horaLlegada = arr.scheduledTime?.local || arr.scheduledTimeLocal || '';
+  const partes = [f.status||'', horaSalida?`Sale ${horaSalida}`:'', horaLlegada?`Llega ${horaLlegada}`:''].filter(Boolean);
+  return partes.length ? partes.join(' · ') : 'Vuelo encontrado, sin más detalle disponible.';
 }
 function panelHotel(f, setterHotel, scopeKey){
   const h = hotelDe(f);

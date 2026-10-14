@@ -116,5 +116,18 @@
     // ---- Roster, proveedores, venues, giras, catálogo de áreas ----
     // Mismo patrón para las demás entidades compartidas; se agregan
     // conforme se van sustituyendo las llamadas a Store en la app.
+
+    // ---- Status de vuelo (AeroDataBox, vía la Edge Function vuelo-status) ----
+    // La key de RapidAPI nunca llega al navegador — vive como secreto del
+    // proyecto de Supabase. Ver supabase/functions/vuelo-status/index.ts.
+    async consultarEstadoVuelo(numero, fecha) {
+      const resp = await fetch(
+        `${window.MARABUNTA_SUPABASE_URL}/functions/v1/vuelo-status?numero=${encodeURIComponent(numero)}&fecha=${encodeURIComponent(fecha)}`,
+        { headers: { apikey: window.MARABUNTA_SUPABASE_ANON_KEY, Authorization: `Bearer ${window.MARABUNTA_SUPABASE_ANON_KEY}` } }
+      );
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data?.error || 'No se pudo consultar el vuelo');
+      return data;
+    },
   };
 })();
