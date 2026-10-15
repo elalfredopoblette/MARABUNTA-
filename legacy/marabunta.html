@@ -1405,9 +1405,8 @@ function puestosPagoDefault(){
     {nombre:'Supervisor de Site', categoria:'eps'}, {nombre:'Auxiliar de Site', categoria:'eps'},
     {nombre:'Jefe de Steel', categoria:'ops'}, {nombre:'Project Manager Jr', categoria:'ops'}, {nombre:'Project Manager Sr', categoria:'ops'},
     {nombre:'Gerencia', categoria:'ops'}, {nombre:'Dirección', categoria:'ops'}
-  ].map(x=>({id:uuid(), modeloPago:'puntos', valorPorPunto:0, baseFijaNacional:0, baseFijaInternacional:0,
-    sueldoDiarioNacional:0, sueldoDiarioInternacional:0, feeNacional:0, feeInternacional:0,
-    viaticoNacional:0, viaticoInternacional:0, ...x}));
+  ].map(x=>({id:uuid(), modeloPago:'puntos', valorPorPunto:0, baseFija:0,
+    sueldoDiario:0, fee:0, viatico:0, ...x}));
 }
 const MODELOS_PAGO = [{k:'puntos',l:'Pago por puntos'},{k:'diario',l:'Sueldo diario fijo'},{k:'fee',l:'Fee total del proyecto'}];
 // Puntos por tipo de día (mismo vocabulario del calendario del Brief: Previo/Montaje/Show/Desmontaje/Guardia/Salida)
@@ -1423,25 +1422,28 @@ function calcularPersonaProyector(p, persona){
   let puntos=0, diasTrabajados=0;
   dias.forEach(f=>{ const t=turnoEfectivoProyector(p,persona,f); const pts=puntosDeTipo(t); if(t){ puntos+=pts; diasTrabajados++; } });
   const puesto=(C().puestosPago||[]).find(x=>x.id===persona.puestoId)||{};
-  const internacional = (p.proyector||{}).modo==='internacional';
-  const viaticoDia = internacional?Number(puesto.viaticoInternacional)||0:Number(puesto.viaticoNacional)||0;
+  // ?? en vez de || porque 0 es un valor válido — y se usa el campo viejo
+  // "...Nacional" como respaldo para proyectos guardados antes de quitar el
+  // modo Nacional/Internacional (ya no existe ese switch, pero no se pierden
+  // las tarifas ya capturadas).
+  const viaticoDia = Number(puesto.viatico ?? puesto.viaticoNacional) || 0;
   const viaticos = diasTrabajados*viaticoDia;
   const modelo = puesto.modeloPago||'puntos';
   let pago=0;
   if(modelo==='diario'){
-    const sueldoDia = internacional?Number(puesto.sueldoDiarioInternacional)||0:Number(puesto.sueldoDiarioNacional)||0;
+    const sueldoDia = Number(puesto.sueldoDiario ?? puesto.sueldoDiarioNacional) || 0;
     pago = diasTrabajados*sueldoDia;
   } else if(modelo==='fee'){
-    pago = internacional?Number(puesto.feeInternacional)||0:Number(puesto.feeNacional)||0;
+    pago = Number(puesto.fee ?? puesto.feeNacional) || 0;
   } else {
-    const baseFija = internacional?Number(puesto.baseFijaInternacional)||0:Number(puesto.baseFijaNacional)||0;
+    const baseFija = Number(puesto.baseFija ?? puesto.baseFijaNacional) || 0;
     pago = puntos*(Number(puesto.valorPorPunto)||0)+baseFija;
   }
   return {puntos, diasTrabajados, pago, viaticos, total:pago+viaticos};
 }
 function sincronizarProyector(p){
   if(!p.proyector){
-    p.proyector = {modo:'nacional', crew:[]};
+    p.proyector = {crew:[]};
     // primera vez: siembra el crew con los responsables ya asignados en el Brief, para no recapturarlos
     // (el puesto libre que se haya escrito ahí se busca por nombre en el catálogo de pago; si no hay
     // coincidencia, queda sin puesto y se elige a mano)
@@ -3062,7 +3064,6 @@ function viewProyectorTab(p){
   const personasEnCrew = [...new Map(pl.crew.filter(c=>c.personaId).map(c=>[c.personaId, nombrePersona(c.personaId)])).entries()];
   return `${barraTotalCrew(p)}<p class="hint">El turno de cada persona sale del calendario por área del Brief; si alguien tiene una excepción (llega tarde, sale antes), ábrele "Días" y cámbiaselo solo a esa persona.</p>
     <div class="card"><div class="row">
-      <div class="form-group"><label>Modo</label><select onchange="setModoProyector(this.value)"><option value="nacional"${pl.modo==='nacional'?' selected':''}>Nacional</option><option value="internacional"${pl.modo==='internacional'?' selected':''}>Internacional</option></select></div>
       <div class="form-group"><label>Tarifas y puntos por tipo de día</label><button class="btn btn-ghost btn-sm" onclick="ir('config')">Configuración</button></div>
       <div class="form-group"><label>PDF — alcance de nómina</label><select id="pdf-proy-alcance"><option value="todos">Todos</option>${p.areas.map(a=>`<option value="area:${a.id}">Solo ${esc(a.nombre)}</option>`).join('')}${personasEnCrew.map(([id,n])=>`<option value="persona:${id}">Solo ${esc(n||'Sin nombre')}</option>`).join('')}</select></div>
       <div class="form-group"><label>&nbsp;</label>${pvSelectorSecciones('proyector',[{key:'portada',label:'Portada'},{key:'crewlist',label:'Crewlist'},{key:'hospedaje',label:'Hospedaje'},{key:'traslado',label:'Traslado y Flotilla'},{key:'resumen',label:'Resumen ejecutivo'},{key:'nomina',label:'Nómina'}])}</div>
@@ -3237,7 +3238,6 @@ function setFlotillaCampo(id,campo,val){
 }
 function addFlotilla(){ const p=getProyecto(); commit(()=>{ sincronizarCombustibleProyector(p).push(nuevaFlotilla()); }); }
 function delFlotilla(id){ const p=getProyecto(); commit(()=>{ p.proyector.combustible=sincronizarCombustibleProyector(p).filter(f=>f.id!==id); }); }
-function setModoProyector(val){ const p=getProyecto(); commit(()=>{ p.proyector.modo=val; }); }
 function addCrewProyector(areaK){ const p=getProyecto(); commit(()=>{ p.proyector.crew.push(nuevoCrewProyector(areaK)); }); }
 function delCrewProyector(id){ const p=getProyecto(); commit(()=>{ p.proyector.crew=p.proyector.crew.filter(c=>c.id!==id); }); }
 function setCrewProyector(id,campo,val){
@@ -4126,7 +4126,6 @@ function pvPortadaProyector(p){
     <div class="pv-kicker">Crew, hospedaje y transporte</div>
     <div class="pv-title">${esc(p.eventoId||'Sin ID')}</div>
     <div class="pv-meta-row"><div class="pv-meta-label">Artista</div><div>${esc(p.artista||'—')}</div></div>
-    <div class="pv-meta-row"><div class="pv-meta-label">Modo</div><div>${p.proyector.modo==='internacional'?'Internacional':'Nacional'}</div></div>
     <div class="pv-meta-row"><div class="pv-meta-label">Crew por área</div><div>${chips||'—'}</div></div>
     <div class="pv-meta-row"><div class="pv-meta-label">Responsables</div><div>${p.areas.map(a=>{ const r=p.responsablesPorArea[a.id]; return `${esc(a.nombre)}: ${esc(nombrePersona(r&&r.personaId)||'Sin asignar')}`; }).join(' · ')||'—'}</div></div>
     <div class="pv-meta-row"><div class="pv-meta-label">Total de personas</div><div>${t.n}</div></div>
@@ -4535,21 +4534,27 @@ function cfgAddTipoDia(){
   if(listaTiposDia().some(t=>norm(t)===norm(nombre))){ toast('Ese tipo de día ya existe'); return; }
   commitR(()=>{ tiposDiaExtra().push(nombre); },{cat:true});
 }
-function cfgAddPuestoPago(){ commitR(()=>{ C().puestosPago.push({id:'pp-'+uuid().slice(0,8), nombre:'Nuevo puesto', categoria:'ops', modeloPago:'puntos', valorPorPunto:0, baseFijaNacional:0, baseFijaInternacional:0, sueldoDiarioNacional:0, sueldoDiarioInternacional:0, feeNacional:0, feeInternacional:0, viaticoNacional:0, viaticoInternacional:0}); },{cat:true}); }
+function cfgAddPuestoPago(){ commitR(()=>{ C().puestosPago.push({id:'pp-'+uuid().slice(0,8), nombre:'Nuevo puesto', categoria:'ops', modeloPago:'puntos', valorPorPunto:0, baseFija:0, sueldoDiario:0, fee:0, viatico:0}); },{cat:true}); }
 function cfgFilaPuestoPago(x){
   const modelo = x.modeloPago||'puntos';
-  const campo=(campoK,label,w)=>`<div class="form-group"><label>${label}</label><input type="number" style="width:${w||80}px" value="${x[campoK]||0}" onchange="cfgSetPuestoPago('${x.id}','${campoK}',this.value)" autocomplete="off"></div>`;
+  // ?? (no ||) por el mismo motivo que en calcularPersonaProyector: 0 es
+  // válido, y los puestos guardados antes de quitar Nacional/Internacional
+  // siguen mostrando su valor "...Nacional" como punto de partida.
+  const campo=(campoK,label,campoViejo,w)=>{
+    const val = x[campoK] ?? (campoViejo!==undefined ? x[campoViejo] : undefined) ?? 0;
+    return `<div class="form-group"><label>${label}</label><input type="number" style="width:${w||80}px" value="${val}" onchange="cfgSetPuestoPago('${x.id}','${campoK}',this.value)" autocomplete="off"></div>`;
+  };
   let camposPago='';
-  if(modelo==='diario') camposPago = campo('sueldoDiarioNacional','Sueldo/día nal.')+campo('sueldoDiarioInternacional','Sueldo/día intl.');
-  else if(modelo==='fee') camposPago = campo('feeNacional','Fee nal.')+campo('feeInternacional','Fee intl.');
-  else camposPago = campo('valorPorPunto','Valor/punto')+campo('baseFijaNacional','Base fija nal.')+campo('baseFijaInternacional','Base fija intl.');
+  if(modelo==='diario') camposPago = campo('sueldoDiario','Sueldo/día','sueldoDiarioNacional');
+  else if(modelo==='fee') camposPago = campo('fee','Fee del proyecto','feeNacional');
+  else camposPago = campo('valorPorPunto','Valor/punto')+campo('baseFija','Base fija','baseFijaNacional');
   return `<div class="card" style="min-width:280px;flex:1">
     <div class="row"><input value="${esc(x.nombre)}" style="min-width:150px;font-weight:700" onchange="cfgSetPuestoPago('${x.id}','nombre',this.value)" autocomplete="off">
       <select onchange="cfgSetPuestoPago('${x.id}','categoria',this.value)"><option value="steel"${x.categoria==='steel'?' selected':''}>Steel</option><option value="eps"${x.categoria==='eps'?' selected':''}>EPS</option><option value="ops"${x.categoria==='ops'?' selected':''}>Operaciones</option></select>
       <button class="btn-icon-del" onclick="cfgDelPuestoPago('${x.id}')">×</button></div>
     <div class="form-group"><label>Modelo de pago</label><select onchange="cfgSetPuestoPago('${x.id}','modeloPago',this.value)">${MODELOS_PAGO.map(m=>`<option value="${m.k}"${modelo===m.k?' selected':''}>${m.l}</option>`).join('')}</select></div>
     <div class="row">${camposPago}</div>
-    <div class="row">${campo('viaticoNacional','Viático/día nal.')}${campo('viaticoInternacional','Viático/día intl.')}</div></div>`;
+    <div class="row">${campo('viatico','Viático/día','viaticoNacional')}</div></div>`;
 }
 function cfgSetPuestoPago(id,campo,val){ commitR(()=>{ const x=C().puestosPago.find(p=>p.id===id); if(!x) return; x[campo]= (campo==='nombre'||campo==='categoria'||campo==='modeloPago')?val:(Number(val)||0); },{cat:true}); }
 function cfgDelPuestoPago(id){ pedirConfirmacion('¿Eliminar este puesto de pago?', ()=>{ commitR(()=>{ C().puestosPago=C().puestosPago.filter(p=>p.id!==id); },{cat:true}); }, 'Eliminar'); }
