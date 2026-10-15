@@ -183,6 +183,11 @@
 
   .status-vuelo{margin-top:4px;padding:4px 8px;background:var(--surf-2);border:1px solid var(--border-soft);border-radius:3px;font-size:11px;color:var(--text-2);}
 
+  /* Header de "Documentos" (botones de PDF) — siempre arriba y marcado aparte
+     del resto de los controles del área, para encontrarlo sin tener que buscar. */
+  .header-docs{border-left:3px solid var(--lime);}
+  .header-docs .mini-title{color:var(--lime);}
+
   .table-wrap{overflow-x:auto;border:1px solid var(--border-c);border-radius:6px;}
   table.app-table{width:100%;border-collapse:collapse;font-size:12px;background:var(--surf-1);}
   .app-table thead th{background:var(--surf-2);color:var(--text-2);font-family:var(--font-sub);text-transform:uppercase;font-size:10px;letter-spacing:0.4px;padding:8px;border-bottom:1px solid var(--border-c);text-align:left;white-space:nowrap;}
@@ -299,9 +304,6 @@
   .cal-fecha{font-weight:700;} .cal-tipo{text-transform:uppercase;color:var(--text-2);margin-top:2px;}
   .cal-day.cal-previo{border-color:var(--blue);} .cal-day.cal-show{background:var(--lime);color:#000;} .cal-day.cal-show .cal-tipo{color:#000;}
   .cal-day.cal-salida{border-color:#E4002B;}
-  .cal-day:has(.viaje-mini){flex:0 0 230px;text-align:left;}
-  .viaje-mini{display:flex;flex-direction:column;gap:3px;margin-top:4px;}
-  .viaje-mini select,.viaje-mini input{width:100%;font-size:10px;padding:3px 4px;border-radius:3px;border:1px solid var(--border-c);background:var(--input-bg);color:var(--text-1);text-transform:none;text-align:left;}
   .conflicto{border-color:#FFD400;}
   .dash-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;align-items:start;}
   .grid-lineas input,.grid-lineas select{width:100%;padding:5px 6px;font-size:12px;}
@@ -1279,10 +1281,8 @@ function ensureProyecto(p){
   if(!p.fechas) p.fechas={llegada:'',showday:'',loadOut:'',tiposPorDia:{}};
   if(!p.fechas.tiposPorDia) p.fechas.tiposPorDia={};
   if(!p.fechas.turnosPorDia) p.fechas.turnosPorDia={};
-  if(!p.fechas.viajesPorDia) p.fechas.viajesPorDia={};
-  if(!p.fechas.hotel) p.fechas.hotel={nombre:'',direccion:'',checkin:'',checkout:'',notas:''};
   if(!p.fechasPorArea || Array.isArray(p.fechasPorArea)) p.fechasPorArea={};
-  Object.keys(p.fechasPorArea).forEach(k=>{ if(p.fechasPorArea[k] && !p.fechasPorArea[k].tiposPorDia) p.fechasPorArea[k].tiposPorDia={}; if(p.fechasPorArea[k] && !p.fechasPorArea[k].turnosPorDia) p.fechasPorArea[k].turnosPorDia={}; if(p.fechasPorArea[k] && !p.fechasPorArea[k].viajesPorDia) p.fechasPorArea[k].viajesPorDia={}; if(p.fechasPorArea[k] && !p.fechasPorArea[k].hotel) p.fechasPorArea[k].hotel={nombre:'',direccion:'',checkin:'',checkout:'',notas:''}; });
+  Object.keys(p.fechasPorArea).forEach(k=>{ if(p.fechasPorArea[k] && !p.fechasPorArea[k].tiposPorDia) p.fechasPorArea[k].tiposPorDia={}; if(p.fechasPorArea[k] && !p.fechasPorArea[k].turnosPorDia) p.fechasPorArea[k].turnosPorDia={}; });
   // Migración: un responsable por rol fijo (pm/jefeSteel/supervisorEps) -> un responsable por área (dinámico)
   if(!p.responsablesPorArea){
     p.responsablesPorArea={};
@@ -1413,7 +1413,17 @@ const MODELOS_PAGO = [{k:'puntos',l:'Pago por puntos'},{k:'diario',l:'Sueldo dia
 const PUNTOS_POR_TIPO_DEFAULT = {previo:0.5, montaje:1.5, show:0.5, desmontaje:1.5, guardia:0.5, salida:0.5};
 function puestoPagoDeArea(areaK){ return (C().puestosPago||[]).filter(x=>x.categoria===areaK); }
 function puntosDeTipo(tipoNombre){ return Number((C().puntosPorTipo||{})[norm(tipoNombre)])||0; }
-function nuevoCrewProyector(area, puestoId){ return {id:uuid(), personaId:null, area, puestoId: puestoId||((puestoPagoDeArea(area)[0]||{}).id||null), turnosOverride:{}}; }
+function nuevoCrewProyector(area, puestoId){ return {id:uuid(), personaId:null, area, puestoId: puestoId||((puestoPagoDeArea(area)[0]||{}).id||null), turnosOverride:{},
+  puedeElegirTransporte:false, transporteModo:'flotilla', flotillaId:null, autobusNotas:'', vuelo:nuevoVueloCrew()}; }
+function nuevoVueloCrew(){ return {ida:{numero:'',fecha:'',linea:'',origen:'',destino:'',salida:'',statusVuelo:'',reservacion:''}, regreso:{numero:'',fecha:'',linea:'',origen:'',destino:'',salida:'',statusVuelo:'',reservacion:''}}; }
+// Defensivo: crew capturado antes de agregar transporte por persona no tiene
+// estos campos — se les da default sin tener que migrar nada a fuerza.
+function transporteDeCrew(c){
+  if(!c.vuelo) c.vuelo = nuevoVueloCrew();
+  if(c.transporteModo===undefined) c.transporteModo='flotilla';
+  if(c.puedeElegirTransporte===undefined) c.puedeElegirTransporte=false;
+  return c;
+}
 // El turno de una persona en una fecha: su excepción propia si la tiene, si no la plantilla del área
 function turnoEfectivoProyector(p, persona, fecha){ return (persona.turnosOverride&&persona.turnosOverride[fecha]) || tipoDia(fechasDeArea(p,persona.area), fecha); }
 function calcularPersonaProyector(p, persona){
@@ -1461,6 +1471,9 @@ function totalesProyector(p){
   pl.crew.forEach(c=>{ const r=calcularPersonaProyector(p,c); pago+=r.pago; viaticos+=r.viaticos; });
   return {pago, viaticos, total:pago+viaticos, n:pl.crew.length};
 }
+// ---- Hotel general del proyecto: un solo hotel para todo el crew (no por día, no por área).
+function hotelProyector(p){ sincronizarProyector(p); if(!p.proyector.hotel) p.proyector.hotel={nombre:'',direccion:'',checkin:'',checkout:'',notas:''}; return p.proyector.hotel; }
+function setHotelProyector(campo,val){ const p=getProyecto(); commit(()=>{ hotelProyector(p)[campo]=val; }); }
 
 // ---- Hospedaje: solo cantidad de cuartos necesarios (sin costo). Un cuarto por persona para
 // todo el evento (no cambia por noche). Steel siempre Cuádruple; EPS Doble si son 3 o menos,
@@ -1528,10 +1541,14 @@ function trasladoResumenProyector(p){
 // siendo solo cantidades.
 function nuevaFlotilla(nombre, areaId){
   return { id:uuid(), nombre:nombre||'Nueva flotilla', nombreRuta:'', areaId:areaId||null, modo:'calculadora',
-    unidades:0, precio_combustible:0, tarifa_diaria:0,
+    unidades:0, capacidadPorUnidad:0, chofer:'', precio_combustible:0, tarifa_diaria:0,
     rendimiento_carretera_kml:9, rendimiento_local_kml:6.5, mantenimiento_por_km:0.05, pct_imprevistos:0.05,
     distancia_ab_km:0, casetas_ab:0, distancia_bc_km:0, casetas_bc:0, distancia_local_km:0, casetas_local:0 };
 }
+// Cupo total de una flotilla (unidades × asientos por unidad) y cuántas
+// personas del crew ya están asignadas a viajar en ella.
+function capacidadFlotilla(f){ return num(f.unidades)*num(f.capacidadPorUnidad); }
+function ocupantesFlotilla(p, flotillaId){ return p.proyector.crew.filter(c=>(c.transporteModo||'flotilla')==='flotilla' && c.flotillaId===flotillaId).length; }
 function sincronizarCombustibleProyector(p){
   // Migración: el combustible viejo (un solo objeto con Sprinters de Steel + auto de renta) se parte en
   // dos flotillas independientes, para no perder lo que ya estaba capturado.
@@ -2060,8 +2077,6 @@ function tipoAutoDia(f, iso){
 function tipoDia(f, iso){ return (f.tiposPorDia && f.tiposPorDia[iso]) || tipoAutoDia(f, iso); }
 // Previo y Salida son, en la práctica, los días de viaje del crew (ida y regreso) — un solo concepto
 // de "día de viaje" para efectos de transporte/hospedaje, no dos tipos nuevos aparte de los que ya existen.
-function esDiaDeViaje(f, iso){ const t=norm(tipoDia(f, iso)); return t==='previo' || t==='salida'; }
-function viajeDe(f, iso){ return (f.viajesPorDia && f.viajesPorDia[iso]) || {tipo:'',linea:'',numero:'',salida:'',origen:'',destino:'',link:''}; }
 function hotelDe(f){ return f.hotel || {nombre:'',direccion:'',checkin:'',checkout:'',notas:''}; }
 // Turno de un día: 'doble' (día y noche, el default de siempre) o 'unico' (una sola columna). Se guarda
 // junto al tipo de día, por proyecto o por área si esa área tiene fechas propias.
@@ -2883,8 +2898,15 @@ function vistaProyectoTab(p){
   if(v==='tracker') return viewTrackerTab(p);
   return viewBriefTab(p);
 }
+// Botones que generan un PDF, siempre juntos y arriba de cada área — para no
+// tener que acordarse en qué card quedó escondido cada uno.
+function headerDocumentos(botones){
+  return `<div class="card header-docs no-print"><h4 class="mini-title" style="margin-top:0">📄 Documentos</h4>
+    <div class="row">${botones.map(b=>`<button class="btn btn-solid btn-sm" onclick="${b.fn}()">${esc(b.label)}</button>`).join('')}</div></div>`;
+}
 function viewBriefTab(p){
-  return `<div class="brief-two">${secIdentidad(p)}
+  return `${headerDocumentos([{label:'📄 Generar PDF — Plan de trabajo',fn:'imprimirGenerales'},{label:'📄 Imprimir resumen',fn:'imprimirResumen'}])}
+    <div class="brief-two">${secIdentidad(p)}
     ${secAreasFechas(p)}</div>
     ${state.conflicto ? secConflicto(p) : secResponsables(p)}
     ${secRequerimientos(p)}
@@ -2905,7 +2927,8 @@ function viewPlannerTab(p){
   const fechas = fechasProyectoPlanner(p);
   if(!fechas.length) return '<div class="card"><p class="muted">Define llegada y salida en la pestaña Brief para generar el calendario del Planner.</p></div>';
   const pl = sincronizarPlanner(p);
-  return `<p class="hint">Las columnas se toman del calendario del proyecto (pestaña Brief) — no hay fechas que capturar aparte. ${pvSelectorSecciones('planner',[{key:'portada',label:'Portada'},{key:'venue',label:'Venue'},{key:'cronograma',label:'Cronograma'},...pl.secciones.map(s=>({key:'sec:'+s.id,label:s.nombre})),...state.planesContingencia.map(pc=>({key:'plan:'+pc.id,label:pc.icono+' '+pc.nombre})),{key:'reqpromotor',label:'Requerimientos de Operación'}])} <button class="btn btn-solid btn-sm" onclick="imprimirPlanner()">📄 Generar PDF</button></p>
+  return `${headerDocumentos([{label:'📄 Generar PDF',fn:'imprimirPlanner'}])}
+    <p class="hint">Las columnas se toman del calendario del proyecto (pestaña Brief) — no hay fechas que capturar aparte. ${pvSelectorSecciones('planner',[{key:'portada',label:'Portada'},{key:'venue',label:'Venue'},{key:'cronograma',label:'Cronograma'},...pl.secciones.map(s=>({key:'sec:'+s.id,label:s.nombre})),...state.planesContingencia.map(pc=>({key:'plan:'+pc.id,label:pc.icono+' '+pc.nombre})),{key:'reqpromotor',label:'Requerimientos de Operación'}])}</p>
     ${pl.secciones.map(sec=>seccionPlannerHTML(p,sec,fechas)).join('')}
     ${seccionRequerimientosPromotor(p)}`;
 }
@@ -3063,18 +3086,23 @@ function viewProyectorTab(p){
   const t = totalesProyector(p);
   const personasEnCrew = [...new Map(pl.crew.filter(c=>c.personaId).map(c=>[c.personaId, nombrePersona(c.personaId)])).entries()];
   return `${barraTotalCrew(p)}<p class="hint">El turno de cada persona sale del calendario por área del Brief; si alguien tiene una excepción (llega tarde, sale antes), ábrele "Días" y cámbiaselo solo a esa persona.</p>
+    <div class="card header-docs no-print"><h4 class="mini-title" style="margin-top:0">📄 Documentos</h4>
+      <div class="row">
+        <div class="form-group"><label>PDF — alcance de nómina</label><select id="pdf-proy-alcance"><option value="todos">Todos</option>${p.areas.map(a=>`<option value="area:${a.id}">Solo ${esc(a.nombre)}</option>`).join('')}${personasEnCrew.map(([id,n])=>`<option value="persona:${id}">Solo ${esc(n||'Sin nombre')}</option>`).join('')}</select></div>
+        <div class="form-group"><label>&nbsp;</label>${pvSelectorSecciones('proyector',[{key:'portada',label:'Portada'},{key:'crewlist',label:'Crewlist'},{key:'hospedaje',label:'Hospedaje'},{key:'traslado',label:'Traslado y Flotilla'},{key:'resumen',label:'Resumen ejecutivo'},{key:'nomina',label:'Nómina'}])}</div>
+        <div class="form-group"><label>&nbsp;</label><button class="btn btn-solid btn-sm" onclick="imprimirProyector()">📄 Generar PDF</button></div>
+      </div></div>
     <div class="card"><div class="row">
       <div class="form-group"><label>Tarifas y puntos por tipo de día</label><button class="btn btn-ghost btn-sm" onclick="ir('config')">Configuración</button></div>
-      <div class="form-group"><label>PDF — alcance de nómina</label><select id="pdf-proy-alcance"><option value="todos">Todos</option>${p.areas.map(a=>`<option value="area:${a.id}">Solo ${esc(a.nombre)}</option>`).join('')}${personasEnCrew.map(([id,n])=>`<option value="persona:${id}">Solo ${esc(n||'Sin nombre')}</option>`).join('')}</select></div>
-      <div class="form-group"><label>&nbsp;</label>${pvSelectorSecciones('proyector',[{key:'portada',label:'Portada'},{key:'crewlist',label:'Crewlist'},{key:'hospedaje',label:'Hospedaje'},{key:'traslado',label:'Traslado y Flotilla'},{key:'resumen',label:'Resumen ejecutivo'},{key:'nomina',label:'Nómina'}])}</div>
-      <div class="form-group"><label>&nbsp;</label><button class="btn btn-solid btn-sm" onclick="imprimirProyector()">📄 Generar PDF</button></div>
     </div></div>
     ${areasHabilitadas.map(areaK=>seccionCrewArea(p,areaK)).join('')}
     <div class="card kpis"><div class="total-box"><div class="label">Personas</div><div class="value">${t.n}</div></div>
       <div class="total-box"><div class="label">Pago por puntos</div><div class="value">${fmtMXN(t.pago)}</div></div>
       <div class="total-box"><div class="label">Viáticos</div><div class="value">${fmtMXN(t.viaticos)}</div></div>
       <div class="total-box"><div class="label">Personal (pago+viáticos)</div><div class="value">${fmtMXN(t.total)}</div></div></div>
+    ${seccionHotelProyector(p)}
     ${seccionHospedajeProyector(p)}
+    ${seccionVuelosProyector(p)}
     ${seccionTrasladoProyector(p)}
     ${seccionResumenGeneralProyector(p)}`;
 }
@@ -3117,12 +3145,14 @@ function seccionCrewArea(p, areaK){
         return `<div class="form-group"><label>${fmtFechaCorta(f)}</label><select onchange="setTurnoOverrideProyector('${c.id}','${f}',this.value)"><option value="">Heredado: ${esc(heredado)}</option>${listaTiposDia().map(x=>`<option value="${x}"${val===x?' selected':''}>${x}</option>`).join('')}</select></div>`;
       }).join('')}</div></td></tr>`;
     }
+    const abiertoT=(state.transporteAbiertos||{})[c.id];
+    const extraT = abiertoT ? `<tr class="planner-dias"><td colspan="9">${panelTransporteCrewHTML(p,c)}</td></tr>` : '';
     return `<tr><td><select data-k="cr:${c.id}:persona" onchange="setCrewProyector('${c.id}','personaId',this.value)">${optsPersonaRoster(p,areaK,c.personaId)}</select></td>
       <td><select data-k="cr:${c.id}:puesto" onchange="setCrewProyector('${c.id}','puestoId',this.value)">${optsPuestoPago(areaK,c.puestoId)}</select></td>
       <td><select data-k="cr:${c.id}:hab" onchange="setCrewProyector('${c.id}','habitacion_room_id',this.value)">${optHab}</select></td>
       <td class="num">${r.diasTrabajados}</td><td class="num">${r.puntos.toFixed(1)}</td>
       <td class="num">${fmtMXN(r.pago)}</td><td class="num">${fmtMXN(r.viaticos)}</td><td class="num">${fmtMXN(r.total)}</td>
-      <td style="white-space:nowrap"><button class="btn-mini btn-mini-wide" title="Editar días" onclick="toggleDiasProyector('${c.id}')">${abierto?'▲':'▼'} Días</button> <button class="btn-icon-del" onclick="delCrewProyector('${c.id}')">×</button></td></tr>${extra}`;
+      <td style="white-space:nowrap"><button class="btn-mini btn-mini-wide" title="Editar días" onclick="toggleDiasProyector('${c.id}')">${abierto?'▲':'▼'} Días</button> <button class="btn-mini btn-mini-wide" title="Hospedaje y transporte" onclick="toggleTransporteProyector('${c.id}')">${abiertoT?'▲':'▼'} Viaje</button> <button class="btn-icon-del" onclick="delCrewProyector('${c.id}')">×</button></td></tr>${extra}${extraT}`;
   }).join('') || `<tr><td colspan="9" class="muted" style="padding:14px;text-align:center">Sin nadie capturado en ${esc(areaNombreProy(p,areaK))}.</td></tr>`;
   return `<div class="card"><h3 class="subsection-title" style="margin-top:0">${esc(areaNombreProy(p,areaK))}${rango?` <span class="muted small">(${fmtFechaCorta(rango.ini)} – ${fmtFechaCorta(rango.fin)})</span>`:''}</h3>
     <div class="row" style="margin-bottom:10px;flex-wrap:wrap">${puestoPagoDeArea(areaK).map(pp=>{
@@ -3131,6 +3161,50 @@ function seccionCrewArea(p, areaK){
     }).join('')}</div>
     <div class="table-wrap"><table class="app-table grid-lineas"><thead><tr><th>Persona</th><th>Puesto</th><th>Habitación</th><th class="num">Días</th><th class="num">Puntos</th><th class="num">Pago</th><th class="num">Viáticos</th><th class="num">Total</th><th></th></tr></thead><tbody>${filas}</tbody></table></div>
     <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="addCrewProyector('${areaK}')">+ Persona</button></div>`;
+}
+function panelTransporteCrewHTML(p, c){
+  transporteDeCrew(c);
+  const flotillasArea = sincronizarCombustibleProyector(p).filter(f=>!f.areaId || f.areaId===c.area);
+  const optFlotilla = (selId) => flotillasArea.map(f=>{
+    const cap=capacidadFlotilla(f), ocup=ocupantesFlotilla(p,f.id);
+    const lleno = cap>0 && ocup>=cap && f.id!==selId;
+    return `<option value="${f.id}" ${f.id===selId?'selected':''} ${lleno?'disabled':''}>${esc(f.nombre)}${cap>0?` (${ocup}/${cap})${lleno?' — lleno':''}`:''}</option>`;
+  }).join('');
+  const selectFlotilla = `<div class="form-group" style="flex:1;min-width:200px"><label>Flotilla asignada</label><select onchange="setCrewFlotillaId('${c.id}',this.value)"><option value="">Sin asignar</option>${optFlotilla(c.flotillaId)}</select></div>`;
+  const modo = c.transporteModo||'flotilla';
+  const camposVuelo = (tramo,label) => {
+    const v=c.vuelo[tramo];
+    return `<div class="card" style="margin-top:6px"><h4 class="mini-title" style="margin-top:0">${label}</h4>
+      <div class="row">
+        <div class="form-group"><label>N° de vuelo</label><input value="${esc(v.numero)}" style="width:110px" onchange="setCrewVueloCampo('${c.id}','${tramo}','numero',this.value)" autocomplete="off"></div>
+        <div class="form-group"><label>Fecha</label><input type="date" value="${esc(v.fecha)}" onchange="setCrewVueloCampo('${c.id}','${tramo}','fecha',this.value)" autocomplete="off"></div>
+        <div class="form-group"><label>&nbsp;</label><button class="btn btn-ghost btn-sm" type="button" onclick="consultarVueloCrewClick(this,'${c.id}','${tramo}')">Ver status del vuelo</button></div>
+      </div>
+      <div class="row">
+        <div class="form-group"><label>Aerolínea</label><input value="${esc(v.linea)}" onchange="setCrewVueloCampo('${c.id}','${tramo}','linea',this.value)" autocomplete="off"></div>
+        <div class="form-group" style="flex:1"><label>Origen</label><input value="${esc(v.origen)}" onchange="setCrewVueloCampo('${c.id}','${tramo}','origen',this.value)" autocomplete="off"></div>
+        <div class="form-group" style="flex:1"><label>Destino</label><input value="${esc(v.destino)}" onchange="setCrewVueloCampo('${c.id}','${tramo}','destino',this.value)" autocomplete="off"></div>
+        <div class="form-group"><label>Hora salida</label><input value="${esc(v.salida)}" style="width:80px" onchange="setCrewVueloCampo('${c.id}','${tramo}','salida',this.value)" autocomplete="off"></div>
+      </div>
+      <div class="form-group"><label>Código de reservación (referencia — la consulta de status usa número + fecha, no este código)</label><input value="${esc(v.reservacion)}" onchange="setCrewVueloCampo('${c.id}','${tramo}','reservacion',this.value)" autocomplete="off"></div>
+      ${v.statusVuelo?`<div class="status-vuelo">${esc(v.statusVuelo)}</div>`:''}</div>`;
+  };
+  let cuerpo;
+  if(!c.puedeElegirTransporte){
+    cuerpo = selectFlotilla;
+  } else {
+    cuerpo = `<div class="form-group"><label>Cómo viaja</label><select onchange="setCrewTransporteModo('${c.id}',this.value)">
+        <option value="flotilla"${modo==='flotilla'?' selected':''}>Con el crew (flotilla)</option>
+        <option value="vuelo"${modo==='vuelo'?' selected':''}>Vuelo independiente</option>
+        <option value="autobus"${modo==='autobus'?' selected':''}>Autobús independiente</option>
+      </select></div>
+      ${modo==='flotilla'?selectFlotilla:''}
+      ${modo==='autobus'?`<div class="form-group" style="flex:1;min-width:200px"><label>Notas (línea, corrida, horario…)</label><input value="${esc(c.autobusNotas)}" onchange="setCrewAutobusNotas('${c.id}',this.value)" autocomplete="off"></div>`:''}
+      ${modo==='vuelo'?camposVuelo('ida','Vuelo de ida')+camposVuelo('regreso','Vuelo de regreso (opcional)'):''}`;
+  }
+  return `<div class="row" style="align-items:flex-end;flex-wrap:wrap">
+    <div class="form-group"><label><input type="checkbox" ${c.puedeElegirTransporte?'checked':''} onchange="setCrewPuedeElegirTransporte('${c.id}',this.checked)"> Puede elegir transporte</label></div>
+    ${cuerpo}</div>`;
 }
 function aplicarSlotsPuestoProyector(areaK,puestoId,val){
   const p=getProyecto(); const objetivo=Math.max(0, parseInt(val)||0);
@@ -3147,6 +3221,58 @@ function toggleDiasProyector(id){ if(!state.diasAbiertos) state.diasAbiertos={};
 function setTurnoOverrideProyector(id,fecha,val){
   const p=getProyecto(); const c=p.proyector.crew.find(x=>x.id===id); if(!c) return;
   commit(()=>{ if(!c.turnosOverride) c.turnosOverride={}; if(val) c.turnosOverride[fecha]=val; else delete c.turnosOverride[fecha]; });
+}
+// ---- Transporte por persona: la mayoría del crew nada más se asigna a la
+// flotilla de su área (sin elegir); normalmente solo líderes de área pueden
+// elegir entre ir con el crew, volar independiente, o tomar un autobús aparte.
+function toggleTransporteProyector(id){ if(!state.transporteAbiertos) state.transporteAbiertos={}; state.transporteAbiertos[id]=!state.transporteAbiertos[id]; render(); }
+function setCrewPuedeElegirTransporte(id,val){
+  const p=getProyecto(); const c=p.proyector.crew.find(x=>x.id===id); if(!c) return;
+  commit(()=>{ transporteDeCrew(c).puedeElegirTransporte=!!val; });
+}
+function setCrewTransporteModo(id,val){
+  const p=getProyecto(); const c=p.proyector.crew.find(x=>x.id===id); if(!c) return;
+  commit(()=>{ transporteDeCrew(c).transporteModo=val; });
+}
+function setCrewFlotillaId(id,val){
+  const p=getProyecto(); const c=p.proyector.crew.find(x=>x.id===id); if(!c) return;
+  commit(()=>{ transporteDeCrew(c).flotillaId=val||null; });
+}
+function setCrewAutobusNotas(id,val){
+  const p=getProyecto(); const c=p.proyector.crew.find(x=>x.id===id); if(!c) return;
+  commit(()=>{ transporteDeCrew(c).autobusNotas=val; });
+}
+function setCrewVueloCampo(id,tramo,campo,val){
+  const p=getProyecto(); const c=p.proyector.crew.find(x=>x.id===id); if(!c) return;
+  commit(()=>{ transporteDeCrew(c).vuelo[tramo][campo]=val; });
+}
+async function consultarVueloCrewClick(btn,id,tramo){
+  const p=getProyecto(); const c=p.proyector.crew.find(x=>x.id===id); if(!c) return;
+  const v=transporteDeCrew(c).vuelo[tramo];
+  if(!v.numero || !v.fecha){ toast('Captura número de vuelo y fecha primero'); return; }
+  if(!window.marabuntaDB || !window.marabuntaDB.consultarEstadoVuelo){ toast('Esta función necesita que estés conectado (inicia sesión).'); return; }
+  const textoOriginal=btn.textContent; btn.disabled=true; btn.textContent='Consultando…';
+  try{
+    const r = await window.marabuntaDB.consultarEstadoVuelo(v.numero, v.fecha);
+    const f = Array.isArray(r) ? r[0] : r;
+    commit(()=>{
+      const vv=transporteDeCrew(c).vuelo[tramo];
+      vv.statusVuelo = f ? resumenVuelo(f) : 'Sin datos para ese vuelo en esa fecha.';
+      if(f){
+        const dep=f.departure||{}, arr=f.arrival||{};
+        if(dep.airport) vv.origen = `${dep.airport.name||''}${dep.airport.iata?` (${dep.airport.iata})`:''}`;
+        if(arr.airport) vv.destino = `${arr.airport.name||''}${arr.airport.iata?` (${arr.airport.iata})`:''}`;
+        const hora=soloHora(dep.scheduledTime?.local); if(hora) vv.salida=hora;
+        if(f.airline?.name) vv.linea=f.airline.name;
+      }
+    });
+  }catch(e){
+    toast(e.message || 'No se pudo consultar el vuelo');
+    btn.disabled=false; btn.textContent=textoOriginal;
+  }
+}
+function seccionHotelProyector(p){
+  return panelHotel({hotel:hotelProyector(p)}, 'setHotelProyector', 'proyector');
 }
 function seccionHospedajeProyector(p){
   const h=calcularHabitacionesProyector(p);
@@ -3174,6 +3300,29 @@ function seccionHospedajeProyector(p){
     <div class="table-wrap"><table class="app-table"><thead><tr><th>Cuarto</th><th>Ocupantes</th></tr></thead><tbody>${filasNombres}</tbody></table></div></div>`;
 }
 function setTarifaHospedaje(tipo,val){ const p=getProyecto(); commit(()=>{ tarifasHospedajeProyector(p)[tipo]=Number(val)||0; }); }
+function seccionVuelosProyector(p){
+  const pl=sincronizarProyector(p);
+  const conVuelo = pl.crew.filter(c=>c.puedeElegirTransporte && (c.transporteModo||'flotilla')==='vuelo');
+  if(!conVuelo.length) return '';
+  const resumenTramo = (v) => {
+    if(!v || (!v.numero && !v.reservacion && !v.origen)) return '<span class="muted">—</span>';
+    const partes=[];
+    if(v.numero) partes.push(esc(v.numero));
+    if(v.fecha) partes.push(fmtFechaCorta(v.fecha));
+    if(v.salida) partes.push(soloHora(v.salida));
+    if(v.origen||v.destino) partes.push(`${esc(v.origen||'?')} → ${esc(v.destino||'?')}`);
+    const linea = [partes.join(' · ')];
+    if(v.reservacion) linea.push(`<span class="muted small">Res: ${esc(v.reservacion)}</span>`);
+    return linea.join('<br>');
+  };
+  const filas = conVuelo.map(c=>{
+    transporteDeCrew(c);
+    return `<tr><td>${esc(nombrePersona(c.personaId)||'Sin nombre')}</td><td class="muted small">${esc(areaNombreProy(p,c.area))}</td><td>${resumenTramo(c.vuelo.ida)}</td><td>${resumenTramo(c.vuelo.regreso)}</td></tr>`;
+  }).join('');
+  return `<div class="card"><h3 class="subsection-title" style="margin-top:0">Vuelos del crew</h3>
+    <p class="hint">Solo aparece aquí quien eligió viajar en vuelo independiente (ábrelo en "Viaje" dentro de cada área para capturarlo o cambiarlo).</p>
+    <div class="table-wrap"><table class="app-table"><thead><tr><th>Persona</th><th>Área</th><th>Vuelo de ida</th><th>Vuelo de regreso</th></tr></thead><tbody>${filas}</tbody></table></div></div>`;
+}
 function seccionTrasladoProyector(p){
   const t = sincronizarTransporteProyector(p);
   const sugeridos = new Map(trasladoResumenProyector(p).map(x=>[x.fecha,x]));
@@ -3215,6 +3364,7 @@ function seccionCombustibleProyector(p){
 function filaFlotilla(p, f, calc){
   const campo=(label,key,paso)=>`<div class="form-group"><label>${label}</label><input type="number" step="${paso||'any'}" value="${f[key]}" onchange="setFlotillaCampo('${f.id}','${key}',this.value)" autocomplete="off"></div>`;
   const modo=f.modo||'calculadora';
+  const cap=capacidadFlotilla(f), ocup=ocupantesFlotilla(p,f.id);
   const camposModo = modo==='renta_simple'
     ? `<div class="row">${campo('Unidades','unidades','1')}${campo('Tarifa diaria todo incluido ($)','tarifa_diaria')}
         <div class="form-group"><label>Días de renta (todo el rango del área)</label><input value="${calc.dias||0}" disabled style="opacity:.7"></div></div>`
@@ -3228,13 +3378,16 @@ function filaFlotilla(p, f, calc){
       <button class="btn-icon-del" onclick="delFlotilla('${f.id}')">×</button></div>
     <div class="form-group"><label>Cómo se cobra</label><select onchange="setFlotillaCampo('${f.id}','modo',this.value)"><option value="calculadora"${modo==='calculadora'?' selected':''}>Calculadora de combustible</option><option value="renta_simple"${modo==='renta_simple'?' selected':''}>Precio de renta (chofer, viáticos, combustible y guardias incluidos)</option></select></div>
     ${camposModo}
+    <div class="row">${campo('Asientos por unidad (ej. Sprinter = 12)','capacidadPorUnidad','1')}
+      <div class="form-group"><label>Chofer</label><input value="${esc(f.chofer||'')}" onchange="setFlotillaCampo('${f.id}','chofer',this.value)" autocomplete="off"></div>
+      ${cap>0?`<div class="form-group"><label>Cupo</label><div class="status-vuelo" style="margin-top:0">${ocup}/${cap} ocupados</div></div>`:''}</div>
     <div class="kpis">${modo==='renta_simple'?'':`<div class="total-box"><div class="label">Viajes de carretera</div><div class="value">${calc.viajesCarretera}</div></div>
       <div class="total-box"><div class="label">Días locales</div><div class="value">${calc.diasLocal}</div></div>`}
       <div class="total-box general"><div class="label">Total de esta flotilla</div><div class="value">${fmtMXN(calc.total)}</div></div></div></div>`;
 }
 function setFlotillaCampo(id,campo,val){
   const p=getProyecto(); const f=sincronizarCombustibleProyector(p).find(x=>x.id===id); if(!f) return;
-  commit(()=>{ f[campo]= (campo==='nombre'||campo==='areaId'||campo==='nombreRuta'||campo==='modo') ? (val||null) : (Number(val)||0); });
+  commit(()=>{ f[campo]= (campo==='nombre'||campo==='areaId'||campo==='nombreRuta'||campo==='modo'||campo==='chofer') ? (val||null) : (Number(val)||0); });
 }
 function addFlotilla(){ const p=getProyecto(); commit(()=>{ sincronizarCombustibleProyector(p).push(nuevaFlotilla()); }); }
 function delFlotilla(id){ const p=getProyecto(); commit(()=>{ p.proyector.combustible=sincronizarCombustibleProyector(p).filter(f=>f.id!==id); }); }
@@ -3259,7 +3412,8 @@ function chipEstatusTrk(k){ const i=estatusInfoTrk(k); return `<span class="chip
 
 function viewTrackerTab(p){
   const t=sincronizarTracker(p), tot=totalesTracker(p);
-  return `<p class="hint">El presupuesto puede venir dividido en varios documentos de Odoo; los que tengan "cuenta" marcado suman aquí. El gasto real lo capturas tú — comparar contra el "consumido" que registran los proveedores internos en Odoo queda para un siguiente paso. ${pvSelectorSecciones('tracker',[{key:'portada',label:'Portada'},{key:'desglose',label:'Desglose por proveedor/rubro'},{key:'dashboard',label:'Dashboard de eficiencia'},{key:'gastos',label:'Gastos reales'}])} <button class="btn btn-solid btn-sm" onclick="imprimirTracker()">📄 Generar PDF</button></p>
+  return `${headerDocumentos([{label:'📄 Generar PDF',fn:'imprimirTracker'}])}
+    <p class="hint">El presupuesto puede venir dividido en varios documentos de Odoo; los que tengan "cuenta" marcado suman aquí. El gasto real lo capturas tú — comparar contra el "consumido" que registran los proveedores internos en Odoo queda para un siguiente paso. ${pvSelectorSecciones('tracker',[{key:'portada',label:'Portada'},{key:'desglose',label:'Desglose por proveedor/rubro'},{key:'dashboard',label:'Dashboard de eficiencia'},{key:'gastos',label:'Gastos reales'}])}</p>
     <div class="kpis"><div class="total-box"><div class="label">Presupuesto</div><div class="value">${fmt0(tot.pres)}</div></div>
       <div class="total-box"><div class="label">Real</div><div class="value">${fmt0(tot.real)}</div></div>
       <div class="total-box"><div class="label">Diferencia</div><div class="value ${difClsTrk(tot.dif)}">${fmt0(tot.dif)}</div></div>
@@ -3385,8 +3539,7 @@ function secIdentidad(p){
     <div class="row">${f('cliente','Cliente')}${f('clienteContacto','Contacto del cliente')}
       <div class="form-group"><label>Gira</label><select onchange="setProyectoGira(this.value)"><option value="">Sin gira</option>${state.giras.map(g=>`<option value="${g.id}"${p.giraId===g.id?' selected':''}>${esc(g.nombre)}</option>`).join('')}<option value="__nueva__">+ Nueva gira…</option></select></div>
       <div class="form-group"><label>Venue guardado (opcional)</label><select onchange="setProyectoVenue(this.value)"><option value="">Sin vincular</option>${state.venues.map(v=>`<option value="${v.id}"${p.venueId===v.id?' selected':''}>${esc(v.nombre)}</option>`).join('')}<option value="__nuevo__">+ Nuevo venue…</option></select></div></div>
-    ${venue?`<p class="hint">Vinculado a <a href="#" onclick="abrirVenue('${venue.id}');return false" style="color:var(--accent-text)">${esc(venue.nombre)}</a> — su ficha completa (dirección, capacidad, hospital, restricciones) sale en el PDF del Planner.</p>`:''}
-    <button class="btn btn-ghost btn-sm no-print" style="margin-top:10px" onclick="imprimirGenerales()">📄 Generar PDF — Plan de trabajo</button></div>`;
+    ${venue?`<p class="hint">Vinculado a <a href="#" onclick="abrirVenue('${venue.id}');return false" style="color:var(--accent-text)">${esc(venue.nombre)}</a> — su ficha completa (dirección, capacidad, hospital, restricciones) sale en el PDF del Planner.</p>`:''}</div>`;
 }
 
 /* --- Áreas y calendario --- */
@@ -3397,60 +3550,6 @@ function setTipoDiaGlobal(iso,val){ const p=getProyecto(); commit(()=>{ if(val==
 function setTipoDiaArea(k,iso,val){ const p=getProyecto(); commit(()=>{ const f=p.fechasPorArea[k]; if(!f) return; if(val===tipoAutoDia(f,iso)) delete f.tiposPorDia[iso]; else f.tiposPorDia[iso]=val; }); }
 function setTurnoGlobal(iso,val){ const p=getProyecto(); commit(()=>{ if(val==='doble') delete p.fechas.turnosPorDia[iso]; else p.fechas.turnosPorDia[iso]=val; }); }
 function setTurnoArea(k,iso,val){ const p=getProyecto(); commit(()=>{ const f=p.fechasPorArea[k]; if(!f) return; if(val==='doble') delete f.turnosPorDia[iso]; else f.turnosPorDia[iso]=val; }); }
-function setViajeGlobal(iso,campo,val){ const p=getProyecto(); commit(()=>{ if(!p.fechas.viajesPorDia) p.fechas.viajesPorDia={}; if(!p.fechas.viajesPorDia[iso]) p.fechas.viajesPorDia[iso]=viajeDe(p.fechas,iso); p.fechas.viajesPorDia[iso][campo]=val; }); }
-function setViajeArea(k,iso,campo,val){ const p=getProyecto(); commit(()=>{ const f=p.fechasPorArea[k]; if(!f) return; if(!f.viajesPorDia) f.viajesPorDia={}; if(!f.viajesPorDia[iso]) f.viajesPorDia[iso]=viajeDe(f,iso); f.viajesPorDia[iso][campo]=val; }); }
-function setHotelGlobal(campo,val){ const p=getProyecto(); commit(()=>{ if(!p.fechas.hotel) p.fechas.hotel=hotelDe(p.fechas); p.fechas.hotel[campo]=val; }); }
-function setHotelArea(k,campo,val){ const p=getProyecto(); commit(()=>{ const f=p.fechasPorArea[k]; if(!f) return; if(!f.hotel) f.hotel=hotelDe(f); f.hotel[campo]=val; }); }
-function panelViaje(f, iso, setterViaje){
-  const v = viajeDe(f, iso);
-  const campos = (v.tipo==='vuelo' || v.tipo==='autobus') ? `
-      <input placeholder="${v.tipo==='vuelo'?'Aerolínea':'Línea (ETN, Primera Plus…)'}" value="${esc(v.linea)}" onchange="${setterViaje}('${iso}','linea',this.value)" autocomplete="off">
-      <input placeholder="${v.tipo==='vuelo'?'N° de vuelo':'N° de corrida'}" value="${esc(v.numero)}" onchange="${setterViaje}('${iso}','numero',this.value)" autocomplete="off">
-      <input type="time" value="${esc(v.salida)}" onchange="${setterViaje}('${iso}','salida',this.value)" autocomplete="off">
-      <input placeholder="${v.tipo==='vuelo'?'Origen':'Terminal origen'}" value="${esc(v.origen)}" onchange="${setterViaje}('${iso}','origen',this.value)" autocomplete="off">
-      <input placeholder="${v.tipo==='vuelo'?'Destino':'Terminal destino'}" value="${esc(v.destino)}" onchange="${setterViaje}('${iso}','destino',this.value)" autocomplete="off">` : '';
-  return `<div class="viaje-mini">
-    <select onchange="${setterViaje}('${iso}','tipo',this.value)">
-      <option value="">Transporte…</option>
-      <option value="vuelo"${v.tipo==='vuelo'?' selected':''}>Vuelo</option>
-      <option value="autobus"${v.tipo==='autobus'?' selected':''}>Autobús de línea</option>
-      <option value="otro"${v.tipo==='otro'?' selected':''}>Otro</option>
-    </select>${campos}
-    ${v.tipo?`<input placeholder="Link de rastreo (opcional)" value="${esc(v.link)}" onchange="${setterViaje}('${iso}','link',this.value)" autocomplete="off">`:''}
-    ${v.tipo==='vuelo' && v.numero ? `<div style="margin-top:3px">
-      <button class="btn btn-ghost btn-sm" type="button" style="font-size:9px;padding:2px 6px" data-setter="${esc(setterViaje)}" onclick="consultarVueloClick(this,'${iso}','${esc(v.numero)}')">Ver status del vuelo</button>
-      ${v.statusVuelo?`<div class="status-vuelo">${esc(v.statusVuelo)}</div>`:''}
-    </div>` : ''}
-  </div>`;
-}
-async function consultarVueloClick(btn, iso, numero){
-  if(!window.marabuntaDB || !window.marabuntaDB.consultarEstadoVuelo){ toast('Esta función necesita que estés conectado (inicia sesión).'); return; }
-  // setter es (iso, campo, val) => ... (ver setViajeGlobal/setViajeArea) — hay
-  // que pasarle el iso de este día, si no el valor se guarda en el campo
-  // equivocado y nunca se ve reflejado en pantalla.
-  let setter; try{ setter = new Function('return (' + btn.dataset.setter + ')')(); }catch(e){ return; }
-  const textoOriginal = btn.textContent; btn.disabled = true; btn.textContent = 'Consultando…';
-  try{
-    const r = await window.marabuntaDB.consultarEstadoVuelo(numero, iso);
-    const f = Array.isArray(r) ? r[0] : r;
-    setter(iso, 'statusVuelo', f ? resumenVuelo(f) : 'Sin datos para ese vuelo en esa fecha.');
-    // Si AeroDataBox ya nos da origen/destino/hora, no tiene sentido pedirle
-    // al usuario que los vuelva a escribir a mano — los auto-llenamos.
-    if(f){
-      const dep = f.departure||{}, arr = f.arrival||{};
-      const origen = dep.airport ? `${dep.airport.name||''}${dep.airport.iata?` (${dep.airport.iata})`:''}` : '';
-      const destino = arr.airport ? `${arr.airport.name||''}${arr.airport.iata?` (${arr.airport.iata})`:''}` : '';
-      const hora = (dep.scheduledTime?.local||'').split(' ')[1] || '';
-      if(origen) setter(iso, 'origen', origen);
-      if(destino) setter(iso, 'destino', destino);
-      if(hora) setter(iso, 'salida', hora.slice(0,5));
-      if(f.airline?.name) setter(iso, 'linea', f.airline.name);
-    }
-  }catch(e){
-    toast(e.message || 'No se pudo consultar el vuelo');
-    btn.disabled = false; btn.textContent = textoOriginal;
-  }
-}
 // Arma una línea legible a partir de la respuesta de AeroDataBox — defensivo
 // porque es la primera vez que se conecta esta API y conviene no tronar si
 // algún campo viene en una forma distinta a la esperada.
@@ -3477,16 +3576,15 @@ function panelHotel(f, setterHotel, scopeKey){
       <div class="form-group" style="flex:1"><label>Notas</label><input value="${esc(h.notas)}" placeholder="Confirmación, link de reservación, etc." onchange="${setterHotel}('notas',this.value)" autocomplete="off"></div>
     </div></div>`;
 }
-function previewCalendario(f, setterTipo, setterTurno, setterViaje){
+function previewCalendario(f, setterTipo, setterTurno){
   if(!f.llegada || !f.loadOut) return '<p class="muted small">Captura llegada y salida para ver el calendario.</p>';
   const dias=diasDeRango(f.llegada,f.loadOut);
   return `<div class="cal-preview">${dias.map(iso=>{ const t=tipoDia(f,iso); const tu=turnoDia(f,iso); return `<div class="cal-day cal-${norm(t)}">
       <div class="cal-fecha">${fmtFechaCorta(iso)}</div>
       <select class="cal-tipo-sel" onchange="${setterTipo}('${iso}',this.value)">${listaTiposDia().map(x=>`<option value="${x}"${x===t?' selected':''}>${x}</option>`).join('')}</select>
       ${setterTurno?`<select class="cal-tipo-sel" title="Turno de este día en el Planner (Ruta Crítica, Catering, Mano de Obra, CARGO)" onchange="${setterTurno}('${iso}',this.value)"><option value="doble"${tu==='doble'?' selected':''}>Día y noche</option><option value="unico"${tu==='unico'?' selected':''}>Turno único</option></select>`:''}
-      ${setterViaje && esDiaDeViaje(f,iso) ? panelViaje(f,iso,setterViaje) : ''}
     </div>`; }).join('')}</div>
-  <p class="hint" style="margin-top:6px">Cada día trae un tipo sugerido según llegada, showday y salida; cámbialo aquí si el proyecto tiene más de un día de Show o un montaje distinto. El turno decide si ese día se captura en una sola columna o en Día y Noche en el Planner. Los días de Previo y Salida son los días de viaje del crew — ahí puedes capturar el transporte.</p>`;
+  <p class="hint" style="margin-top:6px">Cada día trae un tipo sugerido según llegada, showday y salida; cámbialo aquí si el proyecto tiene más de un día de Show o un montaje distinto. El turno decide si ese día se captura en una sola columna o en Día y Noche en el Planner. El hotel y los vuelos/autobuses del crew se capturan en la pestaña Crew.</p>`;
 }
 function secAreasFechas(p){
   const fFechas=(obj,setter,w)=>`<div class="row">
@@ -3498,15 +3596,14 @@ function secAreasFechas(p){
     <div class="row" style="margin-bottom:14px;flex-wrap:wrap">${p.areas.map(a=>`<div class="form-group"><label>&nbsp;</label><div style="display:flex;gap:4px;align-items:center"><input data-k="areanom:${a.id}" style="min-width:140px" value="${esc(a.nombre)}" onchange="renombrarArea('${a.id}',this.value)" autocomplete="off"><button class="btn-icon-del" title="Quitar área" onclick="quitarArea('${a.id}')">×</button></div></div>`).join('')}</div>
     <h4 class="mini-title">Fechas del proyecto (aplican a toda área que no tenga fecha propia)</h4>
     ${fFechas(p.fechas,'setFechaGlobal')}
-    ${previewCalendario(p.fechas,'setTipoDiaGlobal','setTurnoGlobal','setViajeGlobal')}
-    ${panelHotel(p.fechas,'setHotelGlobal','global')}
+    ${previewCalendario(p.fechas,'setTipoDiaGlobal','setTurnoGlobal')}
     <div class="row" style="margin:14px 0;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" onclick="agregarAreaGenerica()">+ Agregar área…</button>
     </div>
     ${p.areas.map(a=>{
       const ov=p.fechasPorArea[a.id];
       return `<h4 class="mini-title">${esc(a.nombre)} <label class="chk-area" style="font-weight:400;text-transform:none;margin-left:10px"><input type="checkbox" ${ov?'checked':''} onchange="toggleOverride('${a.id}',this.checked)" autocomplete="off"> fechas propias</label></h4>
-        ${ov ? fFechas(ov, `(c,v)=>setFechaArea('${a.id}',c,v)`) + previewCalendario(ov, `(iso,v)=>setTipoDiaArea('${a.id}',iso,v)`, `(iso,v)=>setTurnoArea('${a.id}',iso,v)`, `(iso,c,v)=>setViajeArea('${a.id}',iso,c,v)`) + panelHotel(ov, `(c,v)=>setHotelArea('${a.id}',c,v)`, 'area-${a.id}') : '<p class="muted small">Usa las fechas del proyecto.</p>'}`;
+        ${ov ? fFechas(ov, `(c,v)=>setFechaArea('${a.id}',c,v)`) + previewCalendario(ov, `(iso,v)=>setTipoDiaArea('${a.id}',iso,v)`, `(iso,v)=>setTurnoArea('${a.id}',iso,v)`) : '<p class="muted small">Usa las fechas del proyecto.</p>'}`;
     }).join('')}
     <p class="hint">Disponibilidad = desde el Previo (llegada) hasta la Salida de cada área, sin importar los días intermedios.</p></div>`;
 }
@@ -3900,7 +3997,6 @@ function secResumen(p){
       <div class="collapse-mobile-body">
         <button class="btn btn-ghost" onclick="exportarProyecto()">Exportar proyecto</button>
         <button class="btn btn-ghost" onclick="exportarProyeccionBrief()">Enviar a Crew (externo)</button>
-        <button class="btn btn-ghost" onclick="imprimirResumen()">Imprimir resumen (PDF)</button>
         <button class="btn btn-danger" onclick="eliminarProyecto()">Eliminar proyecto</button>
       </div></details></div>`;
 }
