@@ -181,6 +181,8 @@
   .hotel-ac-item:last-child{border-bottom:none;}
   .hotel-ac-item:hover, .hotel-ac-item.active{background:var(--lime);color:#000;}
 
+  .status-vuelo{margin-top:4px;padding:4px 8px;background:var(--surf-2);border:1px solid var(--border-soft);border-radius:3px;font-size:11px;color:var(--text-2);}
+
   .table-wrap{overflow-x:auto;border:1px solid var(--border-c);border-radius:6px;}
   table.app-table{width:100%;border-collapse:collapse;font-size:12px;background:var(--surf-1);}
   .app-table thead th{background:var(--surf-2);color:var(--text-2);font-family:var(--font-sub);text-transform:uppercase;font-size:10px;letter-spacing:0.4px;padding:8px;border-bottom:1px solid var(--border-c);text-align:left;white-space:nowrap;}
@@ -3417,7 +3419,7 @@ function panelViaje(f, iso, setterViaje){
     ${v.tipo?`<input placeholder="Link de rastreo (opcional)" value="${esc(v.link)}" onchange="${setterViaje}('${iso}','link',this.value)" autocomplete="off">`:''}
     ${v.tipo==='vuelo' && v.numero ? `<div style="margin-top:3px">
       <button class="btn btn-ghost btn-sm" type="button" style="font-size:9px;padding:2px 6px" data-setter="${esc(setterViaje)}" onclick="consultarVueloClick(this,'${iso}','${esc(v.numero)}')">Ver status del vuelo</button>
-      ${v.statusVuelo?`<div class="muted small" style="margin-top:2px">${esc(v.statusVuelo)}</div>`:''}
+      ${v.statusVuelo?`<div class="status-vuelo">${esc(v.statusVuelo)}</div>`:''}
     </div>` : ''}
   </div>`;
 }
@@ -3432,6 +3434,18 @@ async function consultarVueloClick(btn, iso, numero){
     const r = await window.marabuntaDB.consultarEstadoVuelo(numero, iso);
     const f = Array.isArray(r) ? r[0] : r;
     setter(iso, 'statusVuelo', f ? resumenVuelo(f) : 'Sin datos para ese vuelo en esa fecha.');
+    // Si AeroDataBox ya nos da origen/destino/hora, no tiene sentido pedirle
+    // al usuario que los vuelva a escribir a mano — los auto-llenamos.
+    if(f){
+      const dep = f.departure||{}, arr = f.arrival||{};
+      const origen = dep.airport ? `${dep.airport.name||''}${dep.airport.iata?` (${dep.airport.iata})`:''}` : '';
+      const destino = arr.airport ? `${arr.airport.name||''}${arr.airport.iata?` (${arr.airport.iata})`:''}` : '';
+      const hora = (dep.scheduledTime?.local||'').split(' ')[1] || '';
+      if(origen) setter(iso, 'origen', origen);
+      if(destino) setter(iso, 'destino', destino);
+      if(hora) setter(iso, 'salida', hora.slice(0,5));
+      if(f.airline?.name) setter(iso, 'linea', f.airline.name);
+    }
   }catch(e){
     toast(e.message || 'No se pudo consultar el vuelo');
     btn.disabled = false; btn.textContent = textoOriginal;
@@ -3440,11 +3454,14 @@ async function consultarVueloClick(btn, iso, numero){
 // Arma una línea legible a partir de la respuesta de AeroDataBox — defensivo
 // porque es la primera vez que se conecta esta API y conviene no tronar si
 // algún campo viene en una forma distinta a la esperada.
+const ESTATUS_VUELO = {Unknown:'Sin confirmar', Expected:'Programado', EnRoute:'En vuelo', CheckIn:'Check-in', Boarding:'Abordando', GateClosed:'Puerta cerrada', Departed:'Despegó', Delayed:'Retrasado', Approaching:'Por aterrizar', Arrived:'Aterrizó', Canceled:'Cancelado', Diverted:'Desviado'};
+function soloHora(iso){ const t=(iso||'').split(' ')[1]||''; return t.slice(0,5); }
 function resumenVuelo(f){
   const dep = f.departure||{}, arr = f.arrival||{};
-  const horaSalida = dep.scheduledTime?.local || dep.scheduledTimeLocal || '';
-  const horaLlegada = arr.scheduledTime?.local || arr.scheduledTimeLocal || '';
-  const partes = [f.status||'', horaSalida?`Sale ${horaSalida}`:'', horaLlegada?`Llega ${horaLlegada}`:''].filter(Boolean);
+  const horaSalida = soloHora(dep.scheduledTime?.local || dep.scheduledTimeLocal);
+  const horaLlegada = soloHora(arr.scheduledTime?.local || arr.scheduledTimeLocal);
+  const estatus = ESTATUS_VUELO[f.status] || f.status || '';
+  const partes = [estatus, horaSalida?`Sale ${horaSalida}`:'', horaLlegada?`Llega ${horaLlegada}`:''].filter(Boolean);
   return partes.length ? partes.join(' · ') : 'Vuelo encontrado, sin más detalle disponible.';
 }
 function panelHotel(f, setterHotel, scopeKey){
