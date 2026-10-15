@@ -2350,18 +2350,28 @@ function bindLugarAutocomplete(){
       box.style.width = r.width + 'px';
     };
 
+    const accion = input.dataset.accion || null;
     const elegir = async (s) => {
       try{
         const place = s.placePrediction.toPlace();
         await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location'] });
-        if(nombreCampo && place.displayName) setter(nombreCampo, place.displayName);
-        const texto = usarNombre ? (place.displayName || place.formattedAddress || '') : (place.formattedAddress || place.displayName || '');
-        if(texto){ setter(campo, texto); input.value = texto; }
-        // Si Google no regresa location (puede pasar con algunas sugerencias),
-        // avisamos en vez de quedarnos callados — si no, el campo se ve "lleno"
-        // pero sin coordenadas y nunca sale en el mapa, sin ninguna pista de por qué.
-        if(place.location){ setter(latCampo, place.location.lat()); setter(lngCampo, place.location.lng()); }
-        else toast('Ese resultado no trajo coordenadas de Google — el texto quedó guardado, pero no aparecerá en el mapa.');
+        if(accion === 'crear-venue'){
+          // Caso especial: este campo no llena un campo de un objeto que ya
+          // existe (como hotel/vuelo/venue-ficha) — crea y vincula un venue
+          // nuevo del catálogo de una sola vez, para no tener que buscar la
+          // dirección en Maps por un lado y crear el venue por otro.
+          crearYVincularVenueDesdeMaps(place);
+          input.value = '';
+        } else {
+          if(nombreCampo && place.displayName) setter(nombreCampo, place.displayName);
+          const texto = usarNombre ? (place.displayName || place.formattedAddress || '') : (place.formattedAddress || place.displayName || '');
+          if(texto){ setter(campo, texto); input.value = texto; }
+          // Si Google no regresa location (puede pasar con algunas sugerencias),
+          // avisamos en vez de quedarnos callados — si no, el campo se ve "lleno"
+          // pero sin coordenadas y nunca sale en el mapa, sin ninguna pista de por qué.
+          if(place.location){ setter(latCampo, place.location.lat()); setter(lngCampo, place.location.lng()); }
+          else toast('Ese resultado no trajo coordenadas de Google — el texto quedó guardado, pero no aparecerá en el mapa.');
+        }
         sessionToken = new google.maps.places.AutocompleteSessionToken();
       }catch(e){ toast('No se pudo obtener el detalle de ese lugar: '+(e.message||e)); }
       cerrar();
@@ -2722,10 +2732,25 @@ function setProyectoGira(val){
   }
   commit(()=>{ p.giraId=val||null; });
 }
+// Crea (o reutiliza si ya existe por nombre+dirección) un venue del catálogo
+// a partir de un resultado elegido en el buscador de Maps, y lo vincula de
+// una sola vez al proyecto abierto — así ya no hay que buscar la dirección
+// por un lado y crear el venue por otro.
+function crearYVincularVenueDesdeMaps(place){
+  const p=getProyecto(); if(!p) return;
+  const nombre = place.displayName || 'Venue sin nombre';
+  const direccion = place.formattedAddress || '';
+  let v = state.venues.find(x=>norm(x.nombre)===norm(nombre) && x.direccion===direccion);
+  if(!v){ v = nuevoVenue({nombre, direccion, ciudad:p.ciudad||''}); state.venues.push(v); }
+  if(place.location){ v.lat = place.location.lat(); v.lng = place.location.lng(); }
+  persistVenues();
+  commit(()=>{ p.venueId=v.id; if(!p.venue) p.venue=nombre; if(!p.ciudad && v.ciudad) p.ciudad=v.ciudad; });
+  toast(place.location ? `Venue "${nombre}" vinculado desde Maps.` : `Venue "${nombre}" vinculado, pero Google no regresó coordenadas.`);
+}
 function setProyectoVenue(val){
   const p=getProyecto();
   if(val==='__nuevo__'){
-    pedirTexto('Nombre del nuevo venue', nombre=>{
+    pedirTexto('Nombre del nuevo venue (sin buscarlo en Maps — podrás agregarle dirección después en su ficha)', nombre=>{
       const v=nuevoVenue({nombre, ciudad:p.ciudad||''}); state.venues.push(v); persistVenues();
       commit(()=>{ p.venueId=v.id; if(!p.venue) p.venue=nombre; });
     });
@@ -3647,9 +3672,12 @@ function secIdentidad(p){
   return `<div class="card"><h3 class="subsection-title" style="margin-top:0">Generales</h3>
     <div class="row">${f('eventoId','ID del evento',260)}${f('artista','Artista / evento')}${f('ciudad','Ciudad',110)}${f('venue','Venue')}</div>
     <div class="row">${f('cliente','Cliente')}${f('clienteContacto','Contacto del cliente')}
-      <div class="form-group"><label>Gira</label><select onchange="setProyectoGira(this.value)"><option value="">Sin gira</option>${state.giras.map(g=>`<option value="${g.id}"${p.giraId===g.id?' selected':''}>${esc(g.nombre)}</option>`).join('')}<option value="__nueva__">+ Nueva gira…</option></select></div>
-      <div class="form-group"><label>Venue guardado (opcional)</label><select onchange="setProyectoVenue(this.value)"><option value="">Sin vincular</option>${state.venues.map(v=>`<option value="${v.id}"${p.venueId===v.id?' selected':''}>${esc(v.nombre)}</option>`).join('')}<option value="__nuevo__">+ Nuevo venue…</option></select></div></div>
-    ${venue?`<p class="hint">Vinculado a <a href="#" onclick="abrirVenue('${venue.id}');return false" style="color:var(--accent-text)">${esc(venue.nombre)}</a> — su ficha completa (dirección, capacidad, hospital, restricciones) sale en el PDF del Planner.</p>`:''}</div>`;
+      <div class="form-group"><label>Gira</label><select onchange="setProyectoGira(this.value)"><option value="">Sin gira</option>${state.giras.map(g=>`<option value="${g.id}"${p.giraId===g.id?' selected':''}>${esc(g.nombre)}</option>`).join('')}<option value="__nueva__">+ Nueva gira…</option></select></div></div>
+    <div class="row">
+      <div class="form-group" style="flex:1;min-width:260px"><label>Buscar venue en Maps (crea y vincula de una vez)</label><input class="lugar-ac-input" data-setter="()=>{}" data-accion="crear-venue" placeholder="Busca el nombre del venue…" autocomplete="off"></div>
+      <div class="form-group"><label>O elige uno ya guardado</label><select onchange="setProyectoVenue(this.value)"><option value="">Sin vincular</option>${state.venues.map(v=>`<option value="${v.id}"${p.venueId===v.id?' selected':''}>${esc(v.nombre)}</option>`).join('')}<option value="__nuevo__">+ Nuevo venue (sin Maps)…</option></select></div>
+    </div>
+    ${venue?`<p class="hint">Vinculado a <a href="#" onclick="abrirVenue('${venue.id}');return false" style="color:var(--accent-text)">${esc(venue.nombre)}</a> — su ficha completa (dirección, capacidad, hospital, restricciones) sale en el PDF del Planner. ${pinHTML(venue.lat,venue.lng)}</p>`:''}</div>`;
 }
 
 /* --- Áreas y calendario --- */
