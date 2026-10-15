@@ -2291,7 +2291,7 @@ function render(){
   ({home:viewHome, proyectos:viewProyectos, proyecto:viewProyecto, roster:viewRoster, sincronizar:viewSync, emparejar:viewMatch, config:viewConfig, respaldo:viewRespaldo, giras:viewGiras, gira:viewGiraDetalle, venues:viewVenues, venue:viewVenueDetalle, planes:viewPlanes, plan:viewPlanDetalle, proveedores:viewProveedoresRoster, proveedor:viewProveedorRosterDetalle, mockup:viewMockup}[state.view] || viewHome)(m);
   if(state.view==='sincronizar') bindSyncDropzone();
   if(state.view==='proyecto' || state.view==='venue') bindLugarAutocomplete();
-  if(state.view==='proyecto' && (state.tabProyectoVista||'brief')==='general') renderMapaProyecto(getProyecto());
+  if(state.view==='proyecto' && (state.tabProyectoVista||'general')==='general') renderMapaProyecto(getProyecto());
 }
 // Engancha el autocomplete de Google Places a cada campo de lugar que esté en
 // pantalla (hotel, venue, aeropuerto de un vuelo, terminal de autobús…). Se
@@ -2357,12 +2357,17 @@ function bindLugarAutocomplete(){
         if(nombreCampo && place.displayName) setter(nombreCampo, place.displayName);
         const texto = usarNombre ? (place.displayName || place.formattedAddress || '') : (place.formattedAddress || place.displayName || '');
         if(texto){ setter(campo, texto); input.value = texto; }
+        // Si Google no regresa location (puede pasar con algunas sugerencias),
+        // avisamos en vez de quedarnos callados — si no, el campo se ve "lleno"
+        // pero sin coordenadas y nunca sale en el mapa, sin ninguna pista de por qué.
         if(place.location){ setter(latCampo, place.location.lat()); setter(lngCampo, place.location.lng()); }
+        else toast('Ese resultado no trajo coordenadas de Google — el texto quedó guardado, pero no aparecerá en el mapa.');
         sessionToken = new google.maps.places.AutocompleteSessionToken();
-      }catch(e){ /* si falla, el texto que quedó escrito sigue siendo texto libre válido */ }
+      }catch(e){ toast('No se pudo obtener el detalle de ese lugar: '+(e.message||e)); }
       cerrar();
     };
 
+    let avisoFalloTipos = false;
     input.addEventListener('input', () => {
       clearTimeout(debounceTimer);
       const val = input.value.trim();
@@ -2373,7 +2378,13 @@ function bindLugarAutocomplete(){
           if(tipos && tipos.length) params.includedPrimaryTypes = tipos;
           const { suggestions } = await google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions(params);
           pintar(suggestions);
-        }catch(e){ cerrar(); }
+        }catch(e){
+          cerrar();
+          // Avisamos una sola vez por campo (si no, saldría un toast por cada
+          // letra que se escribe) para poder diagnosticar si de verdad es la
+          // API la que está rechazando la búsqueda y no solo "no hay resultados".
+          if(!avisoFalloTipos){ avisoFalloTipos = true; toast('Google rechazó la búsqueda de lugares: '+(e.message||e)); }
+        }
       }, 300);
     });
 
@@ -2586,7 +2597,7 @@ function viewVenueDetalle(m){
       <div class="row">${f('nombre','Nombre',260)}${f('ciudad','Ciudad',140)}${f('estado','Estado',140)}${f('pais','País',120)}${f('capacidad','Capacidad',110)}</div>
       <div class="row">${f('tipoRecinto','Tipo de recinto')}${f('tipoSuperficie','Tipo de superficie')}${f('coordenadas','Coordenadas (lat, lng)',200)}${f('mapsUrl','Link de Google Maps',260)}</div>
       <div class="row">${f('contactoNombre','Contacto')}${f('contactoTel','Teléfono de contacto',160)}${f('contactoEmail','Email de contacto',220)}</div>
-      <div class="row"><div class="form-group" style="flex:1;min-width:280px"><label>Dirección</label><input class="lugar-ac-input" data-setter="(c,val)=>setVenueCampo('${v.id}',c,val)" data-campo="direccion" data-nombrecampo="nombre" placeholder="Busca el nombre o la dirección del venue…" value="${esc(v.direccion)}" onchange="setVenueCampo('${v.id}','direccion',this.value)" autocomplete="off"></div></div>
+      <div class="row"><div class="form-group" style="flex:1;min-width:280px"><label>Dirección</label><input class="lugar-ac-input" data-setter="(c,val)=>setVenueCampo('${v.id}',c,val)" data-campo="direccion" data-nombrecampo="nombre" placeholder="Busca el nombre o la dirección del venue…" value="${esc(v.direccion)}" onchange="setVenueCampo('${v.id}','direccion',this.value)" autocomplete="off">${pinHTML(v.lat,v.lng)}</div></div>
       <div class="row">${ta('hospitalCercano','Hospital más cercano')}${ta('restriccionesTransito','Restricciones de tránsito')}</div>
       <div class="row">${ta('descripcion','Descripción general')}</div>
       <p class="hint">${usoCount ? `Usado en ${usoCount} proyecto(s).` : 'Todavía no está vinculado a ningún proyecto.'}</p>
@@ -3292,8 +3303,8 @@ function panelTransporteCrewHTML(p, c){
       </div>
       <div class="row">
         <div class="form-group"><label>Aerolínea</label><input value="${esc(v.linea)}" onchange="setCrewVueloCampo('${c.id}','${tramo}','linea',this.value)" autocomplete="off"></div>
-        <div class="form-group" style="flex:1"><label>Origen</label><input class="lugar-ac-input" data-setter="(cp,val)=>setCrewVueloCampo('${c.id}','${tramo}',cp,val)" data-campo="origen" data-latcampo="origenLat" data-lngcampo="origenLng" data-usarnombre="1" data-tipos='["airport"]' placeholder="Busca el aeropuerto…" value="${esc(v.origen)}" onchange="setCrewVueloCampo('${c.id}','${tramo}','origen',this.value)" autocomplete="off"></div>
-        <div class="form-group" style="flex:1"><label>Destino</label><input class="lugar-ac-input" data-setter="(cp,val)=>setCrewVueloCampo('${c.id}','${tramo}',cp,val)" data-campo="destino" data-latcampo="destinoLat" data-lngcampo="destinoLng" data-usarnombre="1" data-tipos='["airport"]' placeholder="Busca el aeropuerto…" value="${esc(v.destino)}" onchange="setCrewVueloCampo('${c.id}','${tramo}','destino',this.value)" autocomplete="off"></div>
+        <div class="form-group" style="flex:1"><label>Origen</label><input class="lugar-ac-input" data-setter="(cp,val)=>setCrewVueloCampo('${c.id}','${tramo}',cp,val)" data-campo="origen" data-latcampo="origenLat" data-lngcampo="origenLng" data-usarnombre="1" data-tipos='["airport"]' placeholder="Busca el aeropuerto…" value="${esc(v.origen)}" onchange="setCrewVueloCampo('${c.id}','${tramo}','origen',this.value)" autocomplete="off">${pinHTML(v.origenLat,v.origenLng)}</div>
+        <div class="form-group" style="flex:1"><label>Destino</label><input class="lugar-ac-input" data-setter="(cp,val)=>setCrewVueloCampo('${c.id}','${tramo}',cp,val)" data-campo="destino" data-latcampo="destinoLat" data-lngcampo="destinoLng" data-usarnombre="1" data-tipos='["airport"]' placeholder="Busca el aeropuerto…" value="${esc(v.destino)}" onchange="setCrewVueloCampo('${c.id}','${tramo}','destino',this.value)" autocomplete="off">${pinHTML(v.destinoLat,v.destinoLng)}</div>
         <div class="form-group"><label>Hora salida</label><input value="${esc(v.salida)}" style="width:80px" onchange="setCrewVueloCampo('${c.id}','${tramo}','salida',this.value)" autocomplete="off"></div>
       </div>
       <div class="form-group"><label>Código de reservación (referencia — la consulta de status usa número + fecha, no este código)</label><input value="${esc(v.reservacion)}" onchange="setCrewVueloCampo('${c.id}','${tramo}','reservacion',this.value)" autocomplete="off"></div>
@@ -3303,8 +3314,8 @@ function panelTransporteCrewHTML(p, c){
     ${modo==='flotilla'?selectFlotilla:''}
     ${modo==='autobus'?`<div class="card" style="margin-top:6px;flex:1 1 100%"><h4 class="mini-title" style="margin-top:0">Autobús independiente</h4>
       <div class="row">
-        <div class="form-group" style="flex:1"><label>Terminal de origen</label><input class="lugar-ac-input" data-setter="(cp,val)=>setCrewAutobusCampo('${c.id}',cp,val)" data-campo="origen" data-latcampo="origenLat" data-lngcampo="origenLng" data-usarnombre="1" data-tipos='["bus_station","transit_station"]' placeholder="Busca la terminal…" value="${esc(c.autobus.origen)}" onchange="setCrewAutobusCampo('${c.id}','origen',this.value)" autocomplete="off"></div>
-        <div class="form-group" style="flex:1"><label>Terminal de destino</label><input class="lugar-ac-input" data-setter="(cp,val)=>setCrewAutobusCampo('${c.id}',cp,val)" data-campo="destino" data-latcampo="destinoLat" data-lngcampo="destinoLng" data-usarnombre="1" data-tipos='["bus_station","transit_station"]' placeholder="Busca la terminal…" value="${esc(c.autobus.destino)}" onchange="setCrewAutobusCampo('${c.id}','destino',this.value)" autocomplete="off"></div>
+        <div class="form-group" style="flex:1"><label>Terminal de origen</label><input class="lugar-ac-input" data-setter="(cp,val)=>setCrewAutobusCampo('${c.id}',cp,val)" data-campo="origen" data-latcampo="origenLat" data-lngcampo="origenLng" data-usarnombre="1" data-tipos='["bus_station","transit_station"]' placeholder="Busca la terminal…" value="${esc(c.autobus.origen)}" onchange="setCrewAutobusCampo('${c.id}','origen',this.value)" autocomplete="off">${pinHTML(c.autobus.origenLat,c.autobus.origenLng)}</div>
+        <div class="form-group" style="flex:1"><label>Terminal de destino</label><input class="lugar-ac-input" data-setter="(cp,val)=>setCrewAutobusCampo('${c.id}',cp,val)" data-campo="destino" data-latcampo="destinoLat" data-lngcampo="destinoLng" data-usarnombre="1" data-tipos='["bus_station","transit_station"]' placeholder="Busca la terminal…" value="${esc(c.autobus.destino)}" onchange="setCrewAutobusCampo('${c.id}','destino',this.value)" autocomplete="off">${pinHTML(c.autobus.destinoLat,c.autobus.destinoLng)}</div>
       </div>
       <div class="form-group" style="flex:1"><label>Notas (línea, corrida, horario…)</label><input value="${esc(c.autobus.notas)}" onchange="setCrewAutobusCampo('${c.id}','notas',this.value)" autocomplete="off"></div></div>`:''}
     ${modo==='vuelo'?camposVuelo('ida','Vuelo de ida')+camposVuelo('regreso','Vuelo de regreso'):''}`;
@@ -3662,12 +3673,20 @@ function resumenVuelo(f){
   const partes = [estatus, horaSalida?`Sale ${horaSalida}`:'', horaLlegada?`Llega ${horaLlegada}`:''].filter(Boolean);
   return partes.length ? partes.join(' · ') : 'Vuelo encontrado, sin más detalle disponible.';
 }
+// Confirmación visual de si un campo de lugar ya trajo coordenadas de Google
+// o no — para notar de inmediato si una selección sí "pegó" o se quedó en
+// texto libre (y por lo tanto no va a salir en el mapa del proyecto).
+function pinHTML(lat,lng){
+  const ok = typeof lat==='number' && typeof lng==='number' && !isNaN(lat) && !isNaN(lng);
+  return ok ? `<span class="muted small">📍 ${lat.toFixed(5)}, ${lng.toFixed(5)}</span>`
+            : '<span class="muted small" style="color:var(--warn,#FFD400)">📍 sin coordenadas todavía — elige una opción del buscador (no escribas y le den Enter sin seleccionar)</span>';
+}
 function panelHotel(f, setterHotel, scopeKey){
   const h = hotelDe(f);
   return `<div class="card" style="margin-top:10px"><h4 class="mini-title">Hospedaje</h4>
     <div class="row">
       <div class="form-group" style="flex:1"><label>Hotel</label><input data-k="hotel:${scopeKey}:nombre" value="${esc(h.nombre)}" onchange="${setterHotel}('nombre',this.value)" autocomplete="off"></div>
-      <div class="form-group" style="flex:2"><label>Dirección</label><input class="lugar-ac-input" data-setter="${esc(setterHotel)}" data-campo="direccion" data-nombrecampo="nombre" data-tipos='["lodging"]' data-k="hotel:${scopeKey}:direccion" placeholder="Busca el nombre del hotel…" value="${esc(h.direccion)}" onchange="${setterHotel}('direccion',this.value)" autocomplete="off"></div>
+      <div class="form-group" style="flex:2"><label>Dirección</label><input class="lugar-ac-input" data-setter="${esc(setterHotel)}" data-campo="direccion" data-nombrecampo="nombre" data-tipos='["lodging"]' data-k="hotel:${scopeKey}:direccion" placeholder="Busca el nombre del hotel…" value="${esc(h.direccion)}" onchange="${setterHotel}('direccion',this.value)" autocomplete="off">${pinHTML(h.lat,h.lng)}</div>
     </div>
     <div class="row">
       <div class="form-group"><label>Check-in</label><input type="date" value="${esc(h.checkin||f.llegada||'')}" onchange="${setterHotel}('checkin',this.value)" autocomplete="off"></div>
