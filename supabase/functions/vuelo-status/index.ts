@@ -49,6 +49,14 @@ Deno.serve(async (req: Request) => {
     } catch {
       data = { error: `RapidAPI no regresó JSON (status ${resp.status})`, raw: raw.slice(0, 500) };
     }
+    // 204/205/304 no pueden traer cuerpo (lo exige el estándar de Response) —
+    // si AeroDataBox regresó uno de estos, no se lo podemos reenviar tal cual
+    // con nuestro JSON adentro, o Deno truena. Lo mandamos como 502 con el
+    // status real de AeroDataBox dentro del mensaje, para poder diagnosticar.
+    const statusSinCuerpoPermitido = [204, 205, 304].includes(resp.status);
+    if (statusSinCuerpoPermitido) {
+      return json({ error: `AeroDataBox regresó status ${resp.status} sin cuerpo (revisa tu suscripción/plan en RapidAPI)`, upstreamStatus: resp.status }, 502);
+    }
     return json(data, resp.status);
   } catch (e) {
     return json({ error: String(e) }, 500);
