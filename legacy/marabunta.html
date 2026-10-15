@@ -3423,12 +3423,15 @@ function panelViaje(f, iso, setterViaje){
 }
 async function consultarVueloClick(btn, iso, numero){
   if(!window.marabuntaDB || !window.marabuntaDB.consultarEstadoVuelo){ toast('Esta función necesita que estés conectado (inicia sesión).'); return; }
+  // setter es (iso, campo, val) => ... (ver setViajeGlobal/setViajeArea) — hay
+  // que pasarle el iso de este día, si no el valor se guarda en el campo
+  // equivocado y nunca se ve reflejado en pantalla.
   let setter; try{ setter = new Function('return (' + btn.dataset.setter + ')')(); }catch(e){ return; }
   const textoOriginal = btn.textContent; btn.disabled = true; btn.textContent = 'Consultando…';
   try{
     const r = await window.marabuntaDB.consultarEstadoVuelo(numero, iso);
     const f = Array.isArray(r) ? r[0] : r;
-    setter('statusVuelo', f ? resumenVuelo(f) : 'Sin datos para ese vuelo en esa fecha.');
+    setter(iso, 'statusVuelo', f ? resumenVuelo(f) : 'Sin datos para ese vuelo en esa fecha.');
   }catch(e){
     toast(e.message || 'No se pudo consultar el vuelo');
     btn.disabled = false; btn.textContent = textoOriginal;
