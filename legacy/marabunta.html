@@ -175,6 +175,12 @@
   input[type=date]{min-width:150px;}
   .name-input{min-width:160px;}
 
+  /* Dropdown de sugerencias del autocomplete de hoteles (Places API New) */
+  .hotel-ac-box{position:fixed;z-index:300;background:var(--surf-card);border:1px solid var(--border-c);border-radius:4px;max-height:220px;overflow-y:auto;box-shadow:0 6px 18px rgba(0,0,0,.35);}
+  .hotel-ac-item{padding:8px 12px;font-size:13px;color:var(--text-1);cursor:pointer;border-bottom:1px solid var(--border-soft);}
+  .hotel-ac-item:last-child{border-bottom:none;}
+  .hotel-ac-item:hover, .hotel-ac-item.active{background:var(--lime);color:#000;}
+
   .table-wrap{overflow-x:auto;border:1px solid var(--border-c);border-radius:6px;}
   table.app-table{width:100%;border-collapse:collapse;font-size:12px;background:var(--surf-1);}
   .app-table thead th{background:var(--surf-2);color:var(--text-2);font-family:var(--font-sub);text-transform:uppercase;font-size:10px;letter-spacing:0.4px;padding:8px;border-bottom:1px solid var(--border-c);text-align:left;white-space:nowrap;}
@@ -2271,15 +2277,81 @@ function render(){
 // (sin key configurada, o todavía cargando) no hace nada y el campo sigue
 // siendo texto libre normal.
 function bindHotelAutocomplete(){
-  if(!window.google || !window.google.maps || !window.google.maps.places) return;
+  // Usa la Autocomplete Data API nueva (google.maps.places.AutocompleteSuggestion)
+  // en vez del widget viejo (google.maps.places.Autocomplete): proyectos de Google
+  // Cloud creados desde ~2025 ya no tienen acceso a la "Places API" clásica de la
+  // que dependía el widget viejo, solo a "Places API (New)" — con esta API sí
+  // funciona. Dibujamos nuestro propio dropdown de sugerencias porque el
+  // reemplazo oficial de Google (<gmp-place-autocomplete>) es un elemento con su
+  // propio estilo que no sigue el tema oscuro/claro de la app.
+  if(!window.google || !window.google.maps || !window.google.maps.places || !google.maps.places.AutocompleteSuggestion) return;
   document.querySelectorAll('.hotel-direccion-input[data-setter]').forEach(input=>{
     let setter;
     try{ setter = new Function('return (' + input.dataset.setter + ')')(); }catch(e){ return; }
-    const ac = new google.maps.places.Autocomplete(input, { types:['lodging'], fields:['name','formatted_address'] });
-    ac.addListener('place_changed', ()=>{
-      const place = ac.getPlace(); if(!place) return;
-      if(place.name) setter('nombre', place.name);
-      if(place.formatted_address) setter('direccion', place.formatted_address);
+
+    let sessionToken = new google.maps.places.AutocompleteSessionToken();
+    let box = null, debounceTimer = null, items = [], activeIndex = -1;
+
+    const cerrar = () => { if(box){ box.remove(); box = null; } items = []; activeIndex = -1; };
+
+    const pintar = (sugerencias) => {
+      cerrar();
+      if(!sugerencias || !sugerencias.length) return;
+      items = sugerencias;
+      box = document.createElement('div');
+      box.className = 'hotel-ac-box';
+      sugerencias.forEach((s, i) => {
+        const row = document.createElement('div');
+        row.className = 'hotel-ac-item';
+        row.textContent = s.placePrediction.text.toString();
+        row.onmousedown = (e) => { e.preventDefault(); elegir(s); };
+        box.appendChild(row);
+      });
+      document.body.appendChild(box);
+      const r = input.getBoundingClientRect();
+      box.style.left = r.left + 'px';
+      box.style.top = (r.bottom + 4) + 'px';
+      box.style.width = r.width + 'px';
+    };
+
+    const elegir = async (s) => {
+      try{
+        const place = s.placePrediction.toPlace();
+        await place.fetchFields({ fields: ['displayName', 'formattedAddress'] });
+        if(place.displayName) setter('nombre', place.displayName);
+        if(place.formattedAddress){ setter('direccion', place.formattedAddress); input.value = place.formattedAddress; }
+        sessionToken = new google.maps.places.AutocompleteSessionToken();
+      }catch(e){ /* si falla, el texto que quedó escrito sigue siendo texto libre válido */ }
+      cerrar();
+    };
+
+    input.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      const val = input.value.trim();
+      if(!val){ cerrar(); return; }
+      debounceTimer = setTimeout(async () => {
+        try{
+          const { suggestions } = await google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+            input: val,
+            includedPrimaryTypes: ['lodging'],
+            sessionToken,
+          });
+          pintar(suggestions);
+        }catch(e){ cerrar(); }
+      }, 300);
+    });
+
+    input.addEventListener('blur', () => { setTimeout(cerrar, 150); });
+
+    input.addEventListener('keydown', (e) => {
+      if(!box) return;
+      const rows = box.querySelectorAll('.hotel-ac-item');
+      if(e.key === 'ArrowDown'){ e.preventDefault(); activeIndex = Math.min(activeIndex + 1, rows.length - 1); }
+      else if(e.key === 'ArrowUp'){ e.preventDefault(); activeIndex = Math.max(activeIndex - 1, 0); }
+      else if(e.key === 'Enter'){ if(activeIndex >= 0){ e.preventDefault(); elegir(items[activeIndex]); } return; }
+      else if(e.key === 'Escape'){ cerrar(); return; }
+      else return;
+      rows.forEach((r, i) => r.classList.toggle('active', i === activeIndex));
     });
   });
 }
