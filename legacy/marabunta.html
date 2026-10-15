@@ -1414,14 +1414,13 @@ const PUNTOS_POR_TIPO_DEFAULT = {previo:0.5, montaje:1.5, show:0.5, desmontaje:1
 function puestoPagoDeArea(areaK){ return (C().puestosPago||[]).filter(x=>x.categoria===areaK); }
 function puntosDeTipo(tipoNombre){ return Number((C().puntosPorTipo||{})[norm(tipoNombre)])||0; }
 function nuevoCrewProyector(area, puestoId){ return {id:uuid(), personaId:null, area, puestoId: puestoId||((puestoPagoDeArea(area)[0]||{}).id||null), turnosOverride:{},
-  puedeElegirTransporte:false, transporteModo:'flotilla', flotillaId:null, autobusNotas:'', vuelo:nuevoVueloCrew()}; }
+  transporteModo:'flotilla', flotillaId:null, autobusNotas:'', vuelo:nuevoVueloCrew()}; }
 function nuevoVueloCrew(){ return {ida:{numero:'',fecha:'',linea:'',origen:'',destino:'',salida:'',statusVuelo:'',reservacion:''}, regreso:{numero:'',fecha:'',linea:'',origen:'',destino:'',salida:'',statusVuelo:'',reservacion:''}}; }
 // Defensivo: crew capturado antes de agregar transporte por persona no tiene
 // estos campos — se les da default sin tener que migrar nada a fuerza.
 function transporteDeCrew(c){
   if(!c.vuelo) c.vuelo = nuevoVueloCrew();
   if(c.transporteModo===undefined) c.transporteModo='flotilla';
-  if(c.puedeElegirTransporte===undefined) c.puedeElegirTransporte=false;
   return c;
 }
 // El turno de una persona en una fecha: su excepción propia si la tiene, si no la plantilla del área
@@ -3172,6 +3171,11 @@ function panelTransporteCrewHTML(p, c){
   }).join('');
   const selectFlotilla = `<div class="form-group" style="flex:1;min-width:200px"><label>Flotilla asignada</label><select onchange="setCrewFlotillaId('${c.id}',this.value)"><option value="">Sin asignar</option>${optFlotilla(c.flotillaId)}</select></div>`;
   const modo = c.transporteModo||'flotilla';
+  const selectModo = `<div class="form-group"><label>Cómo viaja</label><select onchange="setCrewTransporteModo('${c.id}',this.value)">
+      <option value="flotilla"${modo==='flotilla'?' selected':''}>Con el crew (flotilla)</option>
+      <option value="vuelo"${modo==='vuelo'?' selected':''}>Vuelo independiente</option>
+      <option value="autobus"${modo==='autobus'?' selected':''}>Autobús independiente</option>
+    </select></div>`;
   const camposVuelo = (tramo,label) => {
     const v=c.vuelo[tramo];
     return `<div class="card" style="margin-top:6px"><h4 class="mini-title" style="margin-top:0">${label}</h4>
@@ -3189,22 +3193,11 @@ function panelTransporteCrewHTML(p, c){
       <div class="form-group"><label>Código de reservación (referencia — la consulta de status usa número + fecha, no este código)</label><input value="${esc(v.reservacion)}" onchange="setCrewVueloCampo('${c.id}','${tramo}','reservacion',this.value)" autocomplete="off"></div>
       ${v.statusVuelo?`<div class="status-vuelo">${esc(v.statusVuelo)}</div>`:''}</div>`;
   };
-  let cuerpo;
-  if(!c.puedeElegirTransporte){
-    cuerpo = selectFlotilla;
-  } else {
-    cuerpo = `<div class="form-group"><label>Cómo viaja</label><select onchange="setCrewTransporteModo('${c.id}',this.value)">
-        <option value="flotilla"${modo==='flotilla'?' selected':''}>Con el crew (flotilla)</option>
-        <option value="vuelo"${modo==='vuelo'?' selected':''}>Vuelo independiente</option>
-        <option value="autobus"${modo==='autobus'?' selected':''}>Autobús independiente</option>
-      </select></div>
-      ${modo==='flotilla'?selectFlotilla:''}
-      ${modo==='autobus'?`<div class="form-group" style="flex:1;min-width:200px"><label>Notas (línea, corrida, horario…)</label><input value="${esc(c.autobusNotas)}" onchange="setCrewAutobusNotas('${c.id}',this.value)" autocomplete="off"></div>`:''}
-      ${modo==='vuelo'?camposVuelo('ida','Vuelo de ida')+camposVuelo('regreso','Vuelo de regreso (opcional)'):''}`;
-  }
-  return `<div class="row" style="align-items:flex-end;flex-wrap:wrap">
-    <div class="form-group"><label><input type="checkbox" ${c.puedeElegirTransporte?'checked':''} onchange="setCrewPuedeElegirTransporte('${c.id}',this.checked)"> Puede elegir transporte</label></div>
-    ${cuerpo}</div>`;
+  const cuerpo = `${selectModo}
+    ${modo==='flotilla'?selectFlotilla:''}
+    ${modo==='autobus'?`<div class="form-group" style="flex:1;min-width:200px"><label>Notas (línea, corrida, horario…)</label><input value="${esc(c.autobusNotas)}" onchange="setCrewAutobusNotas('${c.id}',this.value)" autocomplete="off"></div>`:''}
+    ${modo==='vuelo'?camposVuelo('ida','Vuelo de ida')+camposVuelo('regreso','Vuelo de regreso'):''}`;
+  return `<div class="row" style="align-items:flex-end;flex-wrap:wrap">${cuerpo}</div>`;
 }
 function aplicarSlotsPuestoProyector(areaK,puestoId,val){
   const p=getProyecto(); const objetivo=Math.max(0, parseInt(val)||0);
@@ -3222,14 +3215,9 @@ function setTurnoOverrideProyector(id,fecha,val){
   const p=getProyecto(); const c=p.proyector.crew.find(x=>x.id===id); if(!c) return;
   commit(()=>{ if(!c.turnosOverride) c.turnosOverride={}; if(val) c.turnosOverride[fecha]=val; else delete c.turnosOverride[fecha]; });
 }
-// ---- Transporte por persona: la mayoría del crew nada más se asigna a la
-// flotilla de su área (sin elegir); normalmente solo líderes de área pueden
-// elegir entre ir con el crew, volar independiente, o tomar un autobús aparte.
+// ---- Transporte por persona: lo asigna el PM directamente (flotilla, vuelo
+// o autobús independiente) — no es una opción que elija cada persona.
 function toggleTransporteProyector(id){ if(!state.transporteAbiertos) state.transporteAbiertos={}; state.transporteAbiertos[id]=!state.transporteAbiertos[id]; render(); }
-function setCrewPuedeElegirTransporte(id,val){
-  const p=getProyecto(); const c=p.proyector.crew.find(x=>x.id===id); if(!c) return;
-  commit(()=>{ transporteDeCrew(c).puedeElegirTransporte=!!val; });
-}
 function setCrewTransporteModo(id,val){
   const p=getProyecto(); const c=p.proyector.crew.find(x=>x.id===id); if(!c) return;
   commit(()=>{ transporteDeCrew(c).transporteModo=val; });
@@ -3302,7 +3290,7 @@ function seccionHospedajeProyector(p){
 function setTarifaHospedaje(tipo,val){ const p=getProyecto(); commit(()=>{ tarifasHospedajeProyector(p)[tipo]=Number(val)||0; }); }
 function seccionVuelosProyector(p){
   const pl=sincronizarProyector(p);
-  const conVuelo = pl.crew.filter(c=>c.puedeElegirTransporte && (c.transporteModo||'flotilla')==='vuelo');
+  const conVuelo = pl.crew.filter(c=>(c.transporteModo||'flotilla')==='vuelo');
   if(!conVuelo.length) return '';
   const resumenTramo = (v) => {
     if(!v || (!v.numero && !v.reservacion && !v.origen)) return '<span class="muted">—</span>';
@@ -3320,7 +3308,7 @@ function seccionVuelosProyector(p){
     return `<tr><td>${esc(nombrePersona(c.personaId)||'Sin nombre')}</td><td class="muted small">${esc(areaNombreProy(p,c.area))}</td><td>${resumenTramo(c.vuelo.ida)}</td><td>${resumenTramo(c.vuelo.regreso)}</td></tr>`;
   }).join('');
   return `<div class="card"><h3 class="subsection-title" style="margin-top:0">Vuelos del crew</h3>
-    <p class="hint">Solo aparece aquí quien eligió viajar en vuelo independiente (ábrelo en "Viaje" dentro de cada área para capturarlo o cambiarlo).</p>
+    <p class="hint">Solo aparece aquí a quien se le asignó "Vuelo independiente" (ábrelo en "Viaje" dentro de cada área para capturarlo o cambiarlo).</p>
     <div class="table-wrap"><table class="app-table"><thead><tr><th>Persona</th><th>Área</th><th>Vuelo de ida</th><th>Vuelo de regreso</th></tr></thead><tbody>${filas}</tbody></table></div></div>`;
 }
 function seccionTrasladoProyector(p){
