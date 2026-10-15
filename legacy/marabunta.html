@@ -2351,10 +2351,11 @@ function bindLugarAutocomplete(){
     };
 
     const accion = input.dataset.accion || null;
+    const ubicacion = input.dataset.ubicacion === '1';
     const elegir = async (s) => {
       try{
         const place = s.placePrediction.toPlace();
-        await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location'] });
+        await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location', 'addressComponents'] });
         if(accion === 'crear-venue'){
           // Caso especial: este campo no llena un campo de un objeto que ya
           // existe (como hotel/vuelo/venue-ficha) — crea y vincula un venue
@@ -2371,6 +2372,15 @@ function bindLugarAutocomplete(){
           // pero sin coordenadas y nunca sale en el mapa, sin ninguna pista de por qué.
           if(place.location){ setter(latCampo, place.location.lat()); setter(lngCampo, place.location.lng()); }
           else toast('Ese resultado no trajo coordenadas de Google — el texto quedó guardado, pero no aparecerá en el mapa.');
+          // Ciudad/estado/país ya vienen en la dirección de Maps — no tiene
+          // caso pedírselos a mano al usuario aparte (campos "ciudad"/"estado"/"pais"
+          // del mismo objeto, cuando el formulario los tiene).
+          if(ubicacion){
+            const partes = partesDireccion(place);
+            if(partes.ciudad) setter('ciudad', partes.ciudad);
+            if(partes.estado) setter('estado', partes.estado);
+            if(partes.pais) setter('pais', partes.pais);
+          }
         }
         sessionToken = new google.maps.places.AutocompleteSessionToken();
       }catch(e){ toast('No se pudo obtener el detalle de ese lugar: '+(e.message||e)); }
@@ -2607,7 +2617,7 @@ function viewVenueDetalle(m){
       <div class="row">${f('nombre','Nombre',260)}${f('ciudad','Ciudad',140)}${f('estado','Estado',140)}${f('pais','País',120)}${f('capacidad','Capacidad',110)}</div>
       <div class="row">${f('tipoRecinto','Tipo de recinto')}${f('tipoSuperficie','Tipo de superficie')}${f('coordenadas','Coordenadas (lat, lng)',200)}${f('mapsUrl','Link de Google Maps',260)}</div>
       <div class="row">${f('contactoNombre','Contacto')}${f('contactoTel','Teléfono de contacto',160)}${f('contactoEmail','Email de contacto',220)}</div>
-      <div class="row"><div class="form-group" style="flex:1;min-width:280px"><label>Dirección</label><input class="lugar-ac-input" data-setter="(c,val)=>setVenueCampo('${v.id}',c,val)" data-campo="direccion" data-nombrecampo="nombre" placeholder="Busca el nombre o la dirección del venue…" value="${esc(v.direccion)}" onchange="setVenueCampo('${v.id}','direccion',this.value)" autocomplete="off">${pinHTML(v.lat,v.lng)}</div></div>
+      <div class="row"><div class="form-group" style="flex:1;min-width:280px"><label>Dirección</label><input class="lugar-ac-input" data-setter="(c,val)=>setVenueCampo('${v.id}',c,val)" data-campo="direccion" data-nombrecampo="nombre" data-ubicacion="1" placeholder="Busca el nombre o la dirección del venue…" value="${esc(v.direccion)}" onchange="setVenueCampo('${v.id}','direccion',this.value)" autocomplete="off">${pinHTML(v.lat,v.lng)}</div></div>
       <div class="row">${ta('hospitalCercano','Hospital más cercano')}${ta('restriccionesTransito','Restricciones de tránsito')}</div>
       <div class="row">${ta('descripcion','Descripción general')}</div>
       <p class="hint">${usoCount ? `Usado en ${usoCount} proyecto(s).` : 'Todavía no está vinculado a ningún proyecto.'}</p>
@@ -2732,19 +2742,34 @@ function setProyectoGira(val){
   }
   commit(()=>{ p.giraId=val||null; });
 }
+// Saca ciudad/estado/país de los address components que regresa Maps, para
+// no tener que pedírselos a mano al usuario si ya vienen en la dirección.
+function partesDireccion(place){
+  const comps = place.addressComponents || [];
+  const buscar = (...tipos) => { const c = comps.find(x=>x.types && tipos.some(t=>x.types.includes(t))); return c ? (c.longText||c.shortText||'') : ''; };
+  return {
+    ciudad: buscar('locality','sublocality','administrative_area_level_2'),
+    estado: buscar('administrative_area_level_1'),
+    pais: buscar('country'),
+  };
+}
 // Crea (o reutiliza si ya existe por nombre+dirección) un venue del catálogo
 // a partir de un resultado elegido en el buscador de Maps, y lo vincula de
 // una sola vez al proyecto abierto — así ya no hay que buscar la dirección
-// por un lado y crear el venue por otro.
+// por un lado y crear el venue por otro. También llena ciudad/estado/país
+// (del venue y del proyecto) con lo que ya trae Maps, en vez de pedírselos
+// otra vez a mano.
 function crearYVincularVenueDesdeMaps(place){
   const p=getProyecto(); if(!p) return;
   const nombre = place.displayName || 'Venue sin nombre';
   const direccion = place.formattedAddress || '';
+  const partes = partesDireccion(place);
   let v = state.venues.find(x=>norm(x.nombre)===norm(nombre) && x.direccion===direccion);
-  if(!v){ v = nuevoVenue({nombre, direccion, ciudad:p.ciudad||''}); state.venues.push(v); }
+  if(!v){ v = nuevoVenue({nombre, direccion, ciudad:partes.ciudad||p.ciudad||'', estado:partes.estado||'', pais:partes.pais||''}); state.venues.push(v); }
+  else { if(partes.ciudad) v.ciudad=partes.ciudad; if(partes.estado) v.estado=partes.estado; if(partes.pais) v.pais=partes.pais; }
   if(place.location){ v.lat = place.location.lat(); v.lng = place.location.lng(); }
   persistVenues();
-  commit(()=>{ p.venueId=v.id; if(!p.venue) p.venue=nombre; if(!p.ciudad && v.ciudad) p.ciudad=v.ciudad; });
+  commit(()=>{ p.venueId=v.id; if(!p.venue) p.venue=nombre; if(partes.ciudad) p.ciudad=partes.ciudad; else if(!p.ciudad && v.ciudad) p.ciudad=v.ciudad; });
   toast(place.location ? `Venue "${nombre}" vinculado desde Maps.` : `Venue "${nombre}" vinculado, pero Google no regresó coordenadas.`);
 }
 function setProyectoVenue(val){
