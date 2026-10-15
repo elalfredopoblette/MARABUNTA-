@@ -38,7 +38,17 @@ Deno.serve(async (req: Request) => {
         'x-rapidapi-key': key,
       },
     });
-    const data = await resp.json();
+    // Leemos como texto primero: si RapidAPI rechaza la key o la suscripción,
+    // a veces regresa un cuerpo vacío o que no es JSON, y .json() directo
+    // tronaría sin decirnos el motivo real. Así, si no se puede parsear,
+    // devolvemos el texto crudo + status para poder diagnosticarlo.
+    const raw = await resp.text();
+    let data: unknown;
+    try {
+      data = raw ? JSON.parse(raw) : { error: `RapidAPI regresó una respuesta vacía (status ${resp.status})` };
+    } catch {
+      data = { error: `RapidAPI no regresó JSON (status ${resp.status})`, raw: raw.slice(0, 500) };
+    }
     return json(data, resp.status);
   } catch (e) {
     return json({ error: String(e) }, 500);
